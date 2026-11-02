@@ -1,12 +1,11 @@
 /*
  * LLM Apps form widget: one block on one shared page for every form action. Nothing in
- * here is specific to a form: the action's handler names the form in `_meta` (widget-only,
- * never sent to the model), and this block writes it into itself in the markup this site's
- * own form block already loads, then runs that block's decorate (rules, validation, submit):
- * - `formUrl`, the path of a definition published as content on this site (a converted
- *   Marketo form), becomes a link: <a href="https://<this site>/eds-widgets/forms/...json">;
- * - `formDefinition`, a live AEM form the handler downloaded, becomes <pre><code>.
- * Per-form styles and functions come from the definition itself.
+ * here is specific to a form: the action's handler downloads the form's definition (an AEM
+ * form, or a converted Marketo form published as a DA page) and passes it in
+ * `_meta.formDefinition` (widget-only, never sent to the model). This block writes it into
+ * itself as <pre><code>, the markup AEM publishes a form in and this site's own form block
+ * already loads, then runs that block's decorate (rules, validation, submit). Per-form
+ * styles and functions come from the definition itself.
  *
  * Adapts the form block to the host's sandboxed iframe (via aem-embed):
  * - the rule-engine Worker URL resolves against the iframe's document, so the Worker is
@@ -73,18 +72,9 @@ function nameSiteOnSubmissions() {
   };
 }
 
-// The form, in the markup the form block loads: a link to a definition published on this site, or the
-// definition itself in <pre><code> (a quoted JSON string, as EDS serves an authored form block). Only a path
-// on this site is linked, so a tool result can never make the widget load a form from another origin. The
-// link is absolute because, in the sandbox, a relative one would resolve against the sandbox's origin.
+// The form, in the markup the form block loads: the definition in <pre><code>, as a quoted JSON string, the
+// way AEM publishes a form to EDS. textContent keeps it text: nothing in it is parsed as markup.
 function formMarkup(meta) {
-  if (typeof meta.formUrl === 'string') {
-    if (!/^\/(?!\/)[\w./-]+\.json$/.test(meta.formUrl)) return null;
-    const link = document.createElement('a');
-    link.href = new URL(meta.formUrl, SITE).href;
-    link.textContent = link.href;
-    return link;
-  }
   if (meta.formDefinition && typeof meta.formDefinition === 'object') {
     const pre = document.createElement('pre');
     const code = document.createElement('code');
