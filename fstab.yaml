@@ -1,5 +1,4 @@
 mountpoints:
-  /: 
-    url: https://author-p149891-e1546481.adobeaemcloud.com/bin/franklin.delivery/aem-showcase/securbank/main
+  /:
+    url: https://content.da.live/syamavarm/securbank/
     type: markup
-    suffix: ".html?wcmmode=disabled"
