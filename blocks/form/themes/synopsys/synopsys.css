@@ -1,0 +1,70 @@
+/* ===================================================================
+   synopsys form theme, generated from the form as the site renders it
+   and, where the form was not measured, the site's design tokens.
+   Applied when theme = 'synopsys' is set on the form (properties.theme).
+   Scoped to .form.synopsys: overrides form.css through its CSS variables,
+   with structural rules only where form.css has no variable.
+   =================================================================== */
+
+/* 1. TOKEN OVERRIDES */
+.form.synopsys {
+  --button-primary-color: #80539c;
+  --button-primary-hover-color: color-mix(in srgb, #80539c 85%, black);
+  --form-button-background-color: #80539c;
+  --form-button-background-hover-color: color-mix(in srgb, #80539c 85%, black);
+  --form-button-color: #ffffff;
+  --form-wizard-number-color: #80539c;
+  --form-card-selected-border-color: #80539c;
+  --label-color: #555555;
+  --form-label-color: #555555;
+  --form-fieldset-legend-color: #555555;
+  --form-font-size-s: 18px;
+  --form-label-font-size: 12px;
+  --form-input-font-size: 14px;
+  --form-paragraph-font-size: 18px;
+  --form-button-font-size: 16px;
+  --form-label-font-weight: 400;
+  --form-title-font-weight: 500;
+  --form-fieldset-legend-font-weight: 500;
+  --form-card-border-radius: 0px;
+  --form-card-shadow: rgba(0, 0, 0, 0.15) 0px 1px 7px 0px;
+  --form-background-color: #ffffff;
+  --form-field-vert-gap: 6px;
+  --form-field-horz-gap: 24px;
+  --border-color: #c3c3c3;
+  --form-input-border-color: #c3c3c3;
+  --form-input-background-color: #ffffff;
+  --form-input-border-size: 1px;
+  --form-input-padding: 4px 5px;
+  --form-button-padding: 10px 30px;
+}
+
+/* 2. TYPOGRAPHY (form.css has no font-family variable) */
+main .form.synopsys form {
+  font-family: "Roboto", "Arial", sans-serif;
+}
+
+main .form.synopsys input,
+main .form.synopsys select,
+main .form.synopsys textarea,
+main .form.synopsys button {
+  font-family: inherit;
+}
+
+/* 3. FIELD TEXT (form.css has no input color variable) */
+main .form.synopsys input,
+main .form.synopsys select,
+main .form.synopsys textarea {
+  color: #000000;
+}
+
+/* 4. SHAPE (form.css has no radius variable for fields and buttons) */
+main .form.synopsys input,
+main .form.synopsys select,
+main .form.synopsys textarea {
+  border-radius: 3px;
+}
+main .form.synopsys button {
+  border-radius: 4px;
+  font-weight: 300;
+}
