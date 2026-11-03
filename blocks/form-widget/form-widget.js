@@ -126,14 +126,21 @@ export default async function decorate(block, bridge) {
     return;
   }
 
-  // The form block shows its thank-you message above the form on success. Hide the
-  // form then, and tell the model (silently) so the conversation can follow up.
+  // On a successful submit the form block shows its thank-you message above the form. Hand the user back to
+  // the conversation instead: hide the form (a theme's display rule beats the hidden attribute), post a message
+  // so the assistant continues, then close the widget. Hosts that cannot close a widget get it collapsed.
   new MutationObserver((_, observer) => {
     if (!block.querySelector('.form-message.success-message')) return;
     observer.disconnect();
-    form.hidden = true;
+    form.style.setProperty('display', 'none', 'important');
     const { formTitle } = result._meta;
-    bridge.updateModelContext?.(`The user submitted the form${typeof formTitle === 'string' && formTitle ? ` "${formTitle}"` : ''}.`);
+    const name = typeof formTitle === 'string' && formTitle ? ` "${formTitle}"` : '';
+    Promise.resolve(bridge.sendMessage?.(`I've submitted the${name} form.`))
+      .catch(() => bridge.updateModelContext?.(`The user submitted the form${name}.`))
+      .finally(() => {
+        if (bridge.chatgpt?.requestClose) bridge.chatgpt.requestClose();
+        else block.style.setProperty('display', 'none', 'important');
+      });
   }).observe(block, { childList: true, subtree: true });
 
   bridge.autoResize?.(block);
