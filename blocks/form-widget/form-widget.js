@@ -113,12 +113,28 @@ function plainText(html) {
   return new DOMParser().parseFromString(html, 'text/html').body.textContent.trim().slice(0, 500);
 }
 
+// Posts a user turn so the assistant continues and the user sees what happened. In ChatGPT this is its native
+// follow-up message (window.openai); elsewhere the MCP Apps ui/message.
+function followUp(bridge, text) {
+  const openai = window.openai;
+  if (typeof openai?.sendFollowUpMessage === 'function') return openai.sendFollowUpMessage({ prompt: text });
+  return bridge.sendMessage?.(text);
+}
+
+// Settles when the host has taken the request, or after `ms`, whichever comes first.
+function settled(request, ms = 4000) {
+  return Promise.race([
+    Promise.resolve(request).catch(() => {}),
+    new Promise((resolve) => { setTimeout(resolve, ms); }),
+  ]);
+}
+
 // A successful submission hands control back to the host and removes the widget. A failed one keeps the form open
 // with what the user typed, so the site's error shows and the user can retry; the model is only told it failed.
-// The messages are posted synchronously, so they reach the host even when a site handler navigates away.
+// Requests go out synchronously, so they reach the host even when a site handler navigates away; the widget
+// closes only once the host has taken them, or a closed widget could drop the follow-up.
 function handBack(block, bridge, formTitle) {
   const name = typeof formTitle === 'string' && formTitle ? ` "${formTitle}"` : '';
-  const ignore = () => {};
   let done = false;
   let failedAt = 0;
   return ({ ok, status, body }) => {
@@ -128,20 +144,21 @@ function handBack(block, bridge, formTitle) {
       if (Date.now() - failedAt < 2000) return;
       failedAt = Date.now();
       const reason = status ? ` (HTTP ${status})` : '';
-      Promise.resolve(bridge.updateModelContext?.(
+      settled(bridge.updateModelContext?.(
         `The user's submission of the form${name} failed${reason}. The form is still open for a retry.`,
-      )).catch(ignore);
+      ));
       return;
     }
     done = true;
     block.style.setProperty('display', 'none', 'important');
     const thanks = plainText(body?.thankYouMessage);
-    Promise.resolve(bridge.updateModelContext?.(
-      `The user submitted the form${name} successfully.${thanks ? ` The site replied: ${thanks}` : ''}`,
-    )).catch(ignore);
-    Promise.resolve(bridge.sendMessage?.(`I've submitted the${name} form.`)).catch(ignore);
-    if (bridge.chatgpt?.requestClose) bridge.chatgpt.requestClose();
-    else block.remove();
+    const text = `I've submitted the${name} form successfully.${thanks ? ` The site replied: "${thanks}"` : ''}`;
+    const context = settled(bridge.updateModelContext?.(`The user submitted the form${name} successfully.`));
+    const message = settled(followUp(bridge, text));
+    Promise.all([context, message]).then(() => {
+      if (bridge.chatgpt?.requestClose) bridge.chatgpt.requestClose();
+      else block.remove();
+    });
   };
 }
 
