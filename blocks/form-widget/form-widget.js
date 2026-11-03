@@ -62,14 +62,28 @@ function mirrorFormStyles(root) {
 // deliver the data. In the host's sandboxed iframe the document's hostname is the sandbox's, so send this
 // site's (the widget and the form's definition are published on the same site).
 const SUBMISSION_SERVICE = 'https://forms.adobe.com/adobe/forms/af/submit/';
+const SUBMIT_PATH = '/adobe/forms/af/submit/';
 
-function nameSiteOnSubmissions() {
+// Set once the form is up, only when its block exposes no form model: a finished submit request is then the
+// only sign that a submission ended.
+let onSubmitResponse = null;
+
+function watchSubmissions() {
   const send = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {
-    if (typeof input !== 'string' || !input.startsWith(SUBMISSION_SERVICE)) return send(input, init);
-    const headers = new Headers(init.headers);
-    headers.set('x-adobe-form-hostname', SITE.hostname);
-    return send(input, { ...init, headers });
+    const url = typeof input === 'string' ? input : input?.url || String(input);
+    if (!url.includes(SUBMIT_PATH)) return send(input, init);
+    let request = send(input, init);
+    if (url.startsWith(SUBMISSION_SERVICE)) {
+      const headers = new Headers(init.headers);
+      headers.set('x-adobe-form-hostname', SITE.hostname);
+      request = send(input, { ...init, headers });
+    }
+    request.then(
+      (response) => onSubmitResponse?.({ ok: response.ok, status: response.status }),
+      () => onSubmitResponse?.({ ok: false }),
+    );
+    return request;
   };
 }
 
@@ -93,6 +107,33 @@ function message(block, text) {
   block.replaceChildren(p);
 }
 
+function plainText(html) {
+  if (typeof html !== 'string' || !html) return '';
+  return new DOMParser().parseFromString(html, 'text/html').body.textContent.trim().slice(0, 500);
+}
+
+// The messages are posted synchronously, so they reach the host even when a site handler navigates away.
+function handBack(block, bridge, formTitle) {
+  const name = typeof formTitle === 'string' && formTitle ? ` "${formTitle}"` : '';
+  let done = false;
+  return ({ ok, status, body }) => {
+    if (done) return;
+    done = true;
+    block.style.setProperty('display', 'none', 'important');
+    const thanks = ok ? plainText(body?.thankYouMessage) : '';
+    const context = ok
+      ? `The user submitted the form${name} successfully.${thanks ? ` The site replied: ${thanks}` : ''}`
+      : `The user's submission of the form${name} failed${status ? ` (HTTP ${status})` : ''}. Nothing was sent.`;
+    const ignore = () => {};
+    Promise.resolve(bridge.updateModelContext?.(context)).catch(ignore);
+    Promise.resolve(bridge.sendMessage?.(ok
+      ? `I've submitted the${name} form.`
+      : `Submitting the${name} form failed.`)).catch(ignore);
+    if (bridge.chatgpt?.requestClose) bridge.chatgpt.requestClose();
+    else block.remove();
+  };
+}
+
 export default async function decorate(block, bridge) {
   block.textContent = '';
   if (!bridge?.isConnected || bridge.hostContext?.preview === true) {
@@ -108,7 +149,27 @@ export default async function decorate(block, bridge) {
   }
 
   window.Worker = undefined;
-  nameSiteOnSubmissions();
+  watchSubmissions();
+  // Every submission, successful or not, hands control back to the host and removes the widget, whatever the
+  // site's own submit handling does (thank-you message, custom success handler, redirect): it follows the form
+  // model's terminal events, not the block's markup. The form block publishes its model as window.myForm once
+  // the rule engine starts, after its decorate returns; until then (or if a block version never publishes it)
+  // a finished submit request is the signal.
+  const finish = handBack(block, bridge, result._meta.formTitle);
+  onSubmitResponse = finish;
+  let formModel;
+  Object.defineProperty(window, 'myForm', {
+    configurable: true,
+    get: () => formModel,
+    set(model) {
+      formModel = model;
+      if (typeof model?.subscribe !== 'function') return;
+      onSubmitResponse = null;
+      model.subscribe((e) => finish({ ok: true, body: e?.payload?.body }), 'submitSuccess');
+      model.subscribe((e) => finish({ ok: false, status: e?.payload?.status }), 'submitFailure');
+      model.subscribe((e) => finish({ ok: false, status: e?.payload?.status }), 'submitError');
+    },
+  });
   useSiteCodeBase();
   loadFormVariables();
   mirrorFormStyles(block.getRootNode());
@@ -125,23 +186,6 @@ export default async function decorate(block, bridge) {
     message(block, 'The form is not available right now.');
     return;
   }
-
-  // On a successful submit the form block shows its thank-you message above the form. Hand the user back to
-  // the conversation instead: hide the form (a theme's display rule beats the hidden attribute), post a message
-  // so the assistant continues, then close the widget. Hosts that cannot close a widget get it collapsed.
-  new MutationObserver((_, observer) => {
-    if (!block.querySelector('.form-message.success-message')) return;
-    observer.disconnect();
-    form.style.setProperty('display', 'none', 'important');
-    const { formTitle } = result._meta;
-    const name = typeof formTitle === 'string' && formTitle ? ` "${formTitle}"` : '';
-    Promise.resolve(bridge.sendMessage?.(`I've submitted the${name} form.`))
-      .catch(() => bridge.updateModelContext?.(`The user submitted the form${name}.`))
-      .finally(() => {
-        if (bridge.chatgpt?.requestClose) bridge.chatgpt.requestClose();
-        else block.style.setProperty('display', 'none', 'important');
-      });
-  }).observe(block, { childList: true, subtree: true });
 
   bridge.autoResize?.(block);
 }
