@@ -15,6 +15,7 @@
  *   as the host the service reads the form's definition from.
  */
 import decorateForm from '../form/form.js';
+import { setSubmitBaseUrl } from '../form/constant.js';
 
 // The block's CSS lives in the aem-embed shadow root, where `:root` matches nothing.
 // Loading form.css into the document as well makes its `:root` custom properties
@@ -114,6 +115,9 @@ export default async function decorate(block, bridge) {
   // form.css scopes every rule to `main .form`, the form block's own class.
   block.classList.add('form');
   block.replaceChildren(markup);
+  // The form block prefixes a form's action with its publish URL (constant.js), which AEM forms need. A converted
+  // form's action is already an absolute Submission Service URL, so only for it the prefix is cleared.
+  if (result._meta.formConverted === true) setSubmitBaseUrl('');
   // Rely only on the form block's markup, not on what its decorate returns: block versions differ there.
   await decorateForm(block).catch(() => {});
   const form = block.querySelector('form');
