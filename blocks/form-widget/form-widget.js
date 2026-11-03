@@ -73,12 +73,13 @@ function watchSubmissions() {
   window.fetch = (input, init = {}) => {
     const url = typeof input === 'string' ? input : input?.url || String(input);
     if (!url.includes(SUBMIT_PATH)) return send(input, init);
-    let request = send(input, init);
+    let options = init;
     if (url.startsWith(SUBMISSION_SERVICE)) {
       const headers = new Headers(init.headers);
       headers.set('x-adobe-form-hostname', SITE.hostname);
-      request = send(input, { ...init, headers });
+      options = { ...init, headers };
     }
+    const request = send(input, options);
     request.then(
       (response) => onSubmitResponse?.({ ok: response.ok, status: response.status }),
       () => onSubmitResponse?.({ ok: false }),
@@ -112,23 +113,33 @@ function plainText(html) {
   return new DOMParser().parseFromString(html, 'text/html').body.textContent.trim().slice(0, 500);
 }
 
+// A successful submission hands control back to the host and removes the widget. A failed one keeps the form open
+// with what the user typed, so the site's error shows and the user can retry; the model is only told it failed.
 // The messages are posted synchronously, so they reach the host even when a site handler navigates away.
 function handBack(block, bridge, formTitle) {
   const name = typeof formTitle === 'string' && formTitle ? ` "${formTitle}"` : '';
+  const ignore = () => {};
   let done = false;
+  let failedAt = 0;
   return ({ ok, status, body }) => {
     if (done) return;
+    if (!ok) {
+      // One failed submit raises both submitFailure and submitError.
+      if (Date.now() - failedAt < 2000) return;
+      failedAt = Date.now();
+      const reason = status ? ` (HTTP ${status})` : '';
+      Promise.resolve(bridge.updateModelContext?.(
+        `The user's submission of the form${name} failed${reason}. The form is still open for a retry.`,
+      )).catch(ignore);
+      return;
+    }
     done = true;
     block.style.setProperty('display', 'none', 'important');
-    const thanks = ok ? plainText(body?.thankYouMessage) : '';
-    const context = ok
-      ? `The user submitted the form${name} successfully.${thanks ? ` The site replied: ${thanks}` : ''}`
-      : `The user's submission of the form${name} failed${status ? ` (HTTP ${status})` : ''}. Nothing was sent.`;
-    const ignore = () => {};
-    Promise.resolve(bridge.updateModelContext?.(context)).catch(ignore);
-    Promise.resolve(bridge.sendMessage?.(ok
-      ? `I've submitted the${name} form.`
-      : `Submitting the${name} form failed.`)).catch(ignore);
+    const thanks = plainText(body?.thankYouMessage);
+    Promise.resolve(bridge.updateModelContext?.(
+      `The user submitted the form${name} successfully.${thanks ? ` The site replied: ${thanks}` : ''}`,
+    )).catch(ignore);
+    Promise.resolve(bridge.sendMessage?.(`I've submitted the${name} form.`)).catch(ignore);
     if (bridge.chatgpt?.requestClose) bridge.chatgpt.requestClose();
     else block.remove();
   };
@@ -150,10 +161,10 @@ export default async function decorate(block, bridge) {
 
   window.Worker = undefined;
   watchSubmissions();
-  // Every submission, successful or not, hands control back to the host and removes the widget, whatever the
-  // site's own submit handling does (thank-you message, custom success handler, redirect): it follows the form
-  // model's terminal events, not the block's markup. The form block publishes its model as window.myForm once
-  // the rule engine starts, after its decorate returns; until then (or if a block version never publishes it)
+  // Submissions are followed through the form model's terminal events, not the block's markup, so the site's own
+  // submit handling (thank-you message, custom success handler, redirect) cannot change the outcome. The form
+  // block publishes its model as window.myForm once the rule engine starts, after its decorate returns; until then
+  // (or if a block version never publishes it)
   // a finished submit request is the signal.
   const finish = handBack(block, bridge, result._meta.formTitle);
   onSubmitResponse = finish;
