@@ -69,3 +69,9 @@ main .form.synopsys-contact-synopsys-sales button {
   border-radius: 4px;
   font-weight: 300;
 }
+
+/* 5. LINKS (form.css does not style links in the form's text) */
+main .form.synopsys-contact-synopsys-sales .plain-text-wrapper a {
+  color: #80539c;
+  text-decoration: underline;
+}

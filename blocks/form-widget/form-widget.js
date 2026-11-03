@@ -215,5 +215,15 @@ export default async function decorate(block, bridge) {
     return;
   }
 
+  // A form's text can link out (a consent's privacy notice). A sandboxed widget may not open windows itself, so the
+  // host opens the link: ChatGPT's openExternal, or MCP Apps ui/open-link elsewhere.
+  block.addEventListener('click', (event) => {
+    const link = event.target.closest?.('a[href]');
+    if (!link || !/^(https?:|mailto:)/i.test(link.href)) return;
+    event.preventDefault();
+    if (typeof window.openai?.openExternal === 'function') window.openai.openExternal({ href: link.href });
+    else bridge.openLink?.(link.href);
+  });
+
   bridge.autoResize?.(block);
 }
