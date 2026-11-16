@@ -1,4 +1,4 @@
-/* LLM Apps form widget, generated: sha256=753bd88229f00fe2d56b5b79d099ca218f5d825c6b58652be2dcb87bee819a88 */
+/* LLM Apps form widget, generated: sha256=92480f4886731d0f0bbf69c19f89daa92d35dcf9a44c91baab566554d830a881 */
 /*
  * LLM Apps form widget: one block on one shared page for every form action. Nothing in
  * here is specific to a form: the action's handler downloads the form's definition (an AEM
@@ -86,8 +86,10 @@ function applyThemes(block, definition) {
 // on this site. The service reads that definition from https://<x-adobe-form-hostname><path> to find where to
 // deliver the data. In the host's sandboxed iframe the document's hostname is the sandbox's, so send this
 // site's (the widget and the form's definition are published on the same site).
+// A document-based form's sheet stays on its own site: its host is sent instead (sheetSubmission).
 const SUBMISSION_SERVICE = 'https://forms.adobe.com/adobe/forms/af/submit/';
 const SUBMIT_PATH = '/adobe/forms/af/submit/';
+let submitHostname = SITE.hostname;
 
 // Set once the form is up, only when its block exposes no form model: a finished submit request is then the
 // only sign that a submission ended.
@@ -101,7 +103,7 @@ function watchSubmissions() {
     let options = init;
     if (url.startsWith(SUBMISSION_SERVICE)) {
       const headers = new Headers(init.headers);
-      headers.set('x-adobe-form-hostname', SITE.hostname);
+      headers.set('x-adobe-form-hostname', submitHostname);
       options = { ...init, headers };
     }
     const request = send(input, options);
@@ -111,6 +113,29 @@ function watchSubmissions() {
     );
     return request;
   };
+}
+
+// A document-based form (a sheet) posts to the Submission Service by its sheet's path on its own
+// site (`<path>.json`), which the form block reads from the page's link to the sheet. Rendered here
+// from <pre><code> there is no link, so the handler names the sheet (`_meta.formSheetUrl`, its URL
+// without .json). Only an https URL with a plain path is used; anything else leaves the form as the
+// block renders it.
+const SHEET_PATH = /^\/[A-Za-z0-9._~/-]{1,500}$/;
+
+function sheetSubmission(meta) {
+  if (typeof meta.formSheetUrl !== 'string') return null;
+  let url;
+  try {
+    url = new URL(meta.formSheetUrl);
+  } catch {
+    return null;
+  }
+  const {
+    protocol, port, search, hash, username, password, hostname, pathname,
+  } = url;
+  if (protocol !== 'https:' || port || search || hash || username || password) return null;
+  if (!SHEET_PATH.test(pathname) || pathname.split('/').some((s) => s === '.' || s === '..')) return null;
+  return { hostname, path: pathname };
 }
 
 // The form, in the markup the form block loads: the definition in <pre><code>, as a quoted JSON string, the
@@ -229,9 +254,12 @@ export default async function decorate(block, bridge) {
   // form.css scopes every rule to `main .form`, the form block's own class.
   block.classList.add('form');
   block.replaceChildren(markup);
-  // The form block prefixes a form's action with its publish URL (constant.js), which AEM forms need. A converted
-  // form's action is already an absolute Submission Service URL, so only for it the prefix is cleared.
-  if (result._meta.formConverted === true) formConstants.setSubmitBaseUrl?.('');
+  // The form block prefixes a form's action with its publish URL (constant.js), which AEM forms need.
+  // A converted form's action is already an absolute Submission Service URL, and a sheet posts to the
+  // Submission Service as on its own site (no prefix), so only for those the prefix is cleared.
+  const sheet = sheetSubmission(result._meta);
+  if (sheet) submitHostname = sheet.hostname;
+  if (result._meta.formConverted === true || sheet) formConstants.setSubmitBaseUrl?.('');
   // Rely only on the form block's markup, not on what its decorate returns: block versions differ there.
   await decorateForm(block).catch(() => {});
   const form = block.querySelector('form');
@@ -239,6 +267,8 @@ export default async function decorate(block, bridge) {
     message(block, 'The form is not available right now.');
     return;
   }
+  // Read at submit time: the Submission Service URL is built from it (`<path>.json`).
+  if (sheet) form.dataset.action = sheet.path;
   applyThemes(block, result._meta.formDefinition);
 
   // A form's text can link out (a consent's privacy notice). A sandboxed widget may not open windows itself, so the

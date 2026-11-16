@@ -26,8 +26,49 @@ import { LLMApp, applyAdobeHandles, sendAdobeEvent, _resolveEdgeConfig, _buildIn
 // helpers newer than 0.1.10 are read through the namespace instead.
 import * as sdk from './llmapps-sdk.js';
 
+// Modules supplied by a deploy-time bundle (AMCP-724), keyed by absolute URL.
+// Hosts whose sandbox blocks external scripts (Gemini) cannot import() block or
+// EDS script URLs, so a bundle registers loaders for exactly the URLs this element
+// would import; anything not registered is still imported from its URL.
+// Kept on a global so every copy of this file on the page shares one registry.
+const REGISTRY_KEY = Symbol.for('@adobe/llmapps-sdk/aem-embed/modules');
+const moduleLoaders = globalThis[REGISTRY_KEY] || (globalThis[REGISTRY_KEY] = new Map());
+
+// null when the URL cannot be normalized (e.g. relative): such URLs are never
+// registered and keep resolving through import() exactly as before.
+function moduleKey(url) {
+  try {
+    return new URL(url).href;
+  } catch {
+    return null;
+  }
+}
+
 // eslint-disable-next-line import/prefer-default-export
 export class AEMEmbed extends HTMLElement {
+  /**
+   * Register module loaders by absolute URL: `{ [url]: () => Promise<module> }`.
+   * Loaders run lazily, when this element would otherwise import the URL, so
+   * module evaluation order matches the unbundled widget.
+   */
+  static registerModules(loaders) {
+    Object.entries(loaders || {}).forEach(([url, loader]) => {
+      if (typeof loader !== 'function') {
+        throw new TypeError(`[AEM Embed] module loader for ${url} must be a function`);
+      }
+      const key = moduleKey(url);
+      if (!key) throw new TypeError(`[AEM Embed] module URL must be absolute: ${url}`);
+      moduleLoaders.set(key, loader);
+    });
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  _import(url) {
+    const key = moduleKey(url);
+    const loader = key && moduleLoaders.get(key);
+    return loader ? loader() : import(url);
+  }
+
   constructor() {
     super();
 
@@ -47,7 +88,11 @@ export class AEMEmbed extends HTMLElement {
 
     window.hlx = window.hlx || {};
     window.hlx.suppressLoadPage = true;
-    [window.hlx.codeBasePath] = new URL(import.meta.url).pathname.split('/scripts/');
+    // Keep a value set beforehand (e.g. by a deploy-time bundle, where
+    // import.meta.url is the iframe document rather than this script).
+    if (window.hlx.codeBasePath === undefined) {
+      [window.hlx.codeBasePath] = new URL(import.meta.url).pathname.split('/scripts/');
+    }
 
     // Create the bridge instance — shared by all blocks in this embed
     this._bridge = new LLMApp({
@@ -82,7 +127,7 @@ export class AEMEmbed extends HTMLElement {
     try {
       const blockScriptUrl = `${origin}${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.js`;
       // eslint-disable-next-line no-await-in-loop
-      const decorateBlock = await import(blockScriptUrl);
+      const decorateBlock = await this._import(blockScriptUrl);
       if (decorateBlock.default) {
         // eslint-disable-next-line no-await-in-loop
         await decorateBlock.default(block, this._bridge);
@@ -103,7 +148,7 @@ export class AEMEmbed extends HTMLElement {
     const main = body.querySelector('main');
     const header = document.createElement('header');
     body.append(header);
-    const { buildBlock } = await import(`${origin}${window.hlx.codeBasePath}/scripts/aem.js`);
+    const { buildBlock } = await this._import(`${origin}${window.hlx.codeBasePath}/scripts/aem.js`);
     const block = buildBlock('header', '');
     header.append(block);
 
@@ -126,7 +171,7 @@ export class AEMEmbed extends HTMLElement {
     const main = body.querySelector('main');
     const footer = document.createElement('footer');
     body.append(footer);
-    const { buildBlock } = await import(`${origin}${window.hlx.codeBasePath}/scripts/aem.js`);
+    const { buildBlock } = await this._import(`${origin}${window.hlx.codeBasePath}/scripts/aem.js`);
     const block = buildBlock('footer', '');
     footer.append(block);
 
@@ -147,7 +192,7 @@ export class AEMEmbed extends HTMLElement {
     body.append(main);
     main.innerHTML = htmlText;
 
-    const { decorateMain } = await import(`${origin}${window.hlx.codeBasePath}/scripts/scripts.js`);
+    const { decorateMain } = await this._import(`${origin}${window.hlx.codeBasePath}/scripts/scripts.js`);
     if (decorateMain) {
       await decorateMain(main, true);
     }
@@ -328,4 +373,6 @@ export class AEMEmbed extends HTMLElement {
   }
 }
 
-customElements.define('aem-embed', AEMEmbed);
+// A second copy of this file on the same page must not throw; the first
+// definition wins and shares the module registry above.
+if (!customElements.get('aem-embed')) customElements.define('aem-embed', AEMEmbed);

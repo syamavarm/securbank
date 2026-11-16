@@ -71,6 +71,21 @@
 const PROTOCOL_VERSION = '2026-01-26';
 const LOG_PREFIX = '[LLMApps]';
 
+// ui/initialize recovery (AMCP-724). Some hosts (Gemini's double-iframe sandbox)
+// attach their message listener after the widget's first postMessage, so an
+// initialize sent too early is silently lost. It is re-sent while the host has
+// said nothing at all; the overall deadline matches the former single-request
+// timeout so slow but responsive hosts behave exactly as before.
+const INIT_RETRY_INTERVAL_MS = 1000;
+const INIT_MAX_ATTEMPTS = 10;
+const INIT_DEADLINE_MS = 30000;
+// Sandbox readiness signals defined by MCP Apps: the proxy is now listening, so a
+// lost initialize can be re-sent immediately.
+const SANDBOX_READY_METHODS = new Set([
+  'ui/notifications/sandbox-proxy-ready',
+  'ui/notifications/sandbox-resource-ready',
+]);
+
 function isMessageObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
@@ -533,6 +548,9 @@ export class LLMApp {
     this._connected = false;
     this._destroyed = false;
     this._messageHandler = null;
+    this._connectPromise = null;
+    // Set by the ui/initialize retry loop while it runs; notified of host traffic.
+    this._initWatcher = null;
 
     // Host data from ui/initialize result (McpUiInitializeResult)
     this._hostContext = {};
@@ -662,12 +680,23 @@ export class LLMApp {
    * hostCapabilities, and hostInfo.
    *
    * Safe to call when not embedded (returns immediately, isConnected = false).
+   * Concurrent calls share the handshake in flight; once it settles, a later call
+   * performs a new handshake, as it always has.
    *
    * @returns {Promise<LLMApp>} this instance (for chaining)
    */
   async connect() {
     if (this._destroyed) throw new Error(`${LOG_PREFIX} SDK instance is destroyed`);
+    if (!this._connectPromise) {
+      this._connectPromise = this._connect().finally(() => {
+        this._connectPromise = null;
+      });
+    }
+    return this._connectPromise;
+  }
 
+  /** @private */
+  async _connect() {
     this._startListening();
 
     if (!this.isEmbedded) {
@@ -677,7 +706,8 @@ export class LLMApp {
     }
 
     try {
-      const result = await this.request('ui/initialize', {
+      const startedAt = Date.now();
+      const { result, attempts } = await this._initializeWithRetry({
         appInfo: this._appInfo,
         appCapabilities: this._capabilities,
         protocolVersion: PROTOCOL_VERSION,
@@ -691,7 +721,7 @@ export class LLMApp {
       this.notify('ui/notifications/initialized', {});
       this._connected = true;
       // eslint-disable-next-line no-console
-      console.log(`${LOG_PREFIX} Connected (host: ${this.host})`);
+      console.log(`${LOG_PREFIX} Connected (host: ${this.host}) in ${Date.now() - startedAt} ms after ${attempts} attempt(s)`);
 
       // ChatGPT: on page refresh, tool-result notification is not re-sent,
       // but data is available synchronously on window.openai.toolOutput.
@@ -734,6 +764,74 @@ export class LLMApp {
     }
     this._pendingRequests.forEach(({ reject }) => reject(new Error('SDK instance destroyed')));
     this._pendingRequests.clear();
+  }
+
+  /**
+   * Send ui/initialize, re-sending every INIT_RETRY_INTERVAL_MS (fresh id each time)
+   * while nothing at all has been received from the host, up to INIT_MAX_ATTEMPTS.
+   * Any host message proves its listener is attached, so re-sending stops; a
+   * sandbox-ready notification triggers one immediate re-send. The first response
+   * wins: a JSON-RPC error rejects, a result resolves with `{ result, attempts }`,
+   * and every other attempt is forgotten so late replies are ignored. Rejects after
+   * INIT_DEADLINE_MS overall or when the instance is destroyed.
+   * @private
+   */
+  _initializeWithRetry(params) {
+    return new Promise((resolve, reject) => {
+      const ids = [];
+      let attempts = 0;
+      let heardFromHost = false;
+      let settled = false;
+      let retryTimer = null;
+      let deadlineTimer = null;
+
+      const finish = (settle, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(retryTimer);
+        clearTimeout(deadlineTimer);
+        this._initWatcher = null;
+        ids.forEach((id) => this._pendingRequests.delete(id));
+        settle(value);
+      };
+
+      const send = () => {
+        clearTimeout(retryTimer);
+        if (settled) return;
+        if (this._destroyed) {
+          finish(reject, new Error('SDK instance destroyed'));
+          return;
+        }
+        attempts += 1;
+        // eslint-disable-next-line no-plusplus
+        const id = ++this._rpcId;
+        ids.push(id);
+        this._pendingRequests.set(id, {
+          resolve: (result) => finish(resolve, { result, attempts }),
+          reject: (err) => finish(reject, err),
+        });
+        this._send({ jsonrpc: '2.0', id, method: 'ui/initialize', params });
+        if (!heardFromHost && attempts < INIT_MAX_ATTEMPTS) {
+          retryTimer = setTimeout(send, INIT_RETRY_INTERVAL_MS);
+        }
+      };
+
+      this._initWatcher = (msg) => {
+        if (SANDBOX_READY_METHODS.has(msg.method) && attempts < INIT_MAX_ATTEMPTS) {
+          heardFromHost = true;
+          send();
+          return;
+        }
+        heardFromHost = true;
+        clearTimeout(retryTimer);
+      };
+
+      deadlineTimer = setTimeout(() => {
+        finish(reject, new Error(`${LOG_PREFIX} Request timed out: ui/initialize (${INIT_DEADLINE_MS}ms, ${attempts} attempt(s))`));
+      }, INIT_DEADLINE_MS);
+
+      send();
+    });
   }
 
   // ---------------------------------------------------------------
@@ -1318,6 +1416,8 @@ export class LLMApp {
 
       const msg = event.data;
       if (!msg || msg.jsonrpc !== '2.0') return;
+      // Any host traffic means its listener is attached (stops ui/initialize re-sends).
+      this._initWatcher?.(msg);
 
       // --- JSON-RPC responses (to our requests) ---
       if (typeof msg.id === 'number' || typeof msg.id === 'string') {
