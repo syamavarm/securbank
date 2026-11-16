@@ -1,4 +1,4 @@
-/* LLM Apps form widget, generated: sha256=92480f4886731d0f0bbf69c19f89daa92d35dcf9a44c91baab566554d830a881 */
+/* LLM Apps form widget, generated: sha256=449223ef879357ba5eef91a69f0f655b8c6b4036f6350d4857ff20190a4098fa */
 /*
  * LLM Apps form widget: one block on one shared page for every form action. Nothing in
  * here is specific to a form: the action's handler downloads the form's definition (an AEM
@@ -254,12 +254,11 @@ export default async function decorate(block, bridge) {
   // form.css scopes every rule to `main .form`, the form block's own class.
   block.classList.add('form');
   block.replaceChildren(markup);
-  // The form block prefixes a form's action with its publish URL (constant.js), which AEM forms need.
-  // A converted form's action is already an absolute Submission Service URL, and a sheet posts to the
-  // Submission Service as on its own site (no prefix), so only for those the prefix is cleared.
+  // The form block prefixes a form's action with its publish URL (constant.js), which AEM forms need. A converted
+  // form's action is already an absolute Submission Service URL, so only for it the prefix is cleared.
+  if (result._meta.formConverted === true) formConstants.setSubmitBaseUrl?.('');
   const sheet = sheetSubmission(result._meta);
   if (sheet) submitHostname = sheet.hostname;
-  if (result._meta.formConverted === true || sheet) formConstants.setSubmitBaseUrl?.('');
   // Rely only on the form block's markup, not on what its decorate returns: block versions differ there.
   await decorateForm(block).catch(() => {});
   const form = block.querySelector('form');
@@ -267,8 +266,13 @@ export default async function decorate(block, bridge) {
     message(block, 'The form is not available right now.');
     return;
   }
-  // Read at submit time: the Submission Service URL is built from it (`<path>.json`).
-  if (sheet) form.dataset.action = sheet.path;
+  // Read by the form block's sheet submit, which keeps the site's submit base URL: with none it posts to the
+  // Submission Service for `<action>.json`; with one it posts to the action as is, so the action is then the
+  // Submission Service URL itself.
+  if (sheet) {
+    const base = formConstants.getSubmitBaseUrl?.() || '';
+    form.dataset.action = base ? `${SUBMISSION_SERVICE}${btoa(`${sheet.path}.json`)}` : sheet.path;
+  }
   applyThemes(block, result._meta.formDefinition);
 
   // A form's text can link out (a consent's privacy notice). A sandboxed widget may not open windows itself, so the
