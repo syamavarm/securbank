@@ -39,6 +39,7 @@
  * ── Vendor extensions (auto-detected) ──────────────────────────
  *   app.chatgpt              → ChatGPT-only APIs (or null)
  *     .widgetState / .setWidgetState(state)
+ *     .sendFollowUpMessage({ prompt, scrollToBottom? }) / .supportsFollowUpMessage
  *     .uploadFile(file) / .getFileDownloadUrl({ fileId })
  *     .requestModal(opts) / .requestClose() / .requestCheckout(opts)
  *     .setOpenInAppUrl(opts) / .view
@@ -397,12 +398,12 @@ export async function sendAdobeEvent (bridge, xdm) {
 // ---------------------------------------------------------------
 // Vendor Extensions — ChatGPT  (window.openai)
 //
-// Only truly ChatGPT-specific APIs that have NO standard equivalent.
+// ChatGPT-specific APIs with no equivalent standard behavior.
 // ---------------------------------------------------------------
 
 /**
  * Thin wrapper around ChatGPT's `window.openai` runtime.
- * Only exposes capabilities with no standard equivalent.
+ * Only exposes capabilities with no equivalent standard behavior.
  *
  * @private — accessed via `app.chatgpt`, never instantiated directly.
  */
@@ -419,6 +420,16 @@ class ChatGPTExtensions {
 
   /** Persist a new UI state snapshot (synchronous, host persists async). */
   setWidgetState(state) { this._api.setWidgetState?.(state); }
+
+  /**
+   * Request an assistant reply. Unlike ui/message, ChatGPT hides the prompt by default.
+   * @param {{ prompt: string, scrollToBottom?: boolean }} opts
+   * @returns {Promise<void>}
+   */
+  sendFollowUpMessage(opts) { return this._call('sendFollowUpMessage', opts); }
+
+  /** Whether the host implements the hidden-prompt follow-up API. */
+  get supportsFollowUpMessage() { return typeof this._api.sendFollowUpMessage === 'function'; }
 
   // --- File APIs (ChatGPT-only) -------------------------------
 

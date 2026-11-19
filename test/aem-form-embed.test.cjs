@@ -7,13 +7,18 @@ const vm = require('node:vm');
 
 const SOURCE = 'https://forms.example.test/content/loan';
 const SANDBOX = 'https://mcp-endpoint-test.web-sandbox.oaiusercontent.com';
-const SUBMISSION_RESULT = {
-  content: [{ type: 'text', text: 'Synthetic submission confirmation.' }],
-  structuredContent: { status: 'submitted', source: 'widget_booking_complete', bankVerified: false },
-};
 const source = readFileSync(resolve(__dirname, '../scripts/aem-form-embed.js'), 'utf8')
   .replace(/^import \{ LLMApp \} from '\.\/llmapps-sdk\.js';\n/, '')
   .replace('export class AEMFormEmbed', 'class AEMFormEmbed');
+const sdkSource = readFileSync(resolve(__dirname, '../scripts/llmapps-sdk.js'), 'utf8')
+  .replace(/^export (?:default )?/gm, '')
+  .replaceAll('import.meta.url', "'https://sdk.example.test/llmapps-sdk.js'");
+
+function sdkFixture(api) {
+  return vm.runInNewContext(`${sdkSource}\nnew LLMApp({appInfo:{name:'test',version:'1.0.0'}})`, {
+    window: { openai: api },
+  });
+}
 
 class Element extends EventTarget {
   constructor(tag = 'aem-form-embed') {
@@ -51,8 +56,7 @@ class Element extends EventTarget {
 
 function fixture(
   openLink = async () => ({}),
-  callTool = async () => SUBMISSION_RESULT,
-  updateModelContext = async () => ({}),
+  sendFollowUpMessage = async () => ({}),
 ) {
   let Embed;
   vm.runInNewContext(source, {
@@ -71,12 +75,17 @@ function fixture(
   const form = new Element('form');
   const calls = [];
   const messages = [];
-  const toolCalls = [];
-  const contexts = [];
+  const followUps = [];
   const renders = [];
   let unloads = 0;
   embed.setAttribute('url', SOURCE);
   embed.bridge = {
+    chatgpt: sdkFixture({
+      sendFollowUpMessage(options) {
+        followUps.push(options);
+        return sendFollowUpMessage(options);
+      },
+    }).chatgpt,
     reportSize() {},
     openLink(url) {
       calls.push(url);
@@ -85,14 +94,6 @@ function fixture(
     sendMessage(message) {
       messages.push(message);
       return Promise.resolve({});
-    },
-    callTool(name, args) {
-      toolCalls.push({ name, args });
-      return callTool(name, args);
-    },
-    updateModelContext(context) {
-      contexts.push(context);
-      return updateModelContext(context);
     },
   };
   embed.load = async () => {
@@ -115,7 +116,13 @@ function fixture(
   };
   embed.connectedCallback();
   return {
-    embed, form, calls, messages, toolCalls, contexts, renders, unloads: () => unloads,
+    embed,
+    form,
+    calls,
+    messages,
+    followUps,
+    renders,
+    unloads: () => unloads,
   };
 }
 
@@ -142,73 +149,107 @@ function navigate(embed, url) {
 
 const tick = () => new Promise((done) => { setImmediate(done); });
 
+test('SDK follow-up uses the native ChatGPT API, preserves its receiver, and never sends ui/message', async () => {
+  const options = { prompt: 'Synthetic confirmation.', scrollToBottom: false };
+  const api = {
+    async sendFollowUpMessage(input) {
+      assert.equal(this, api);
+      assert.equal(input, options);
+    },
+  };
+  const app = sdkFixture(api);
+  app.request = () => { throw new Error('Must not fall back to ui/message'); };
+  assert.equal(app.chatgpt.supportsFollowUpMessage, true);
+  await app.chatgpt.sendFollowUpMessage(options);
+});
+
+test('SDK follow-up explicitly rejects when unavailable instead of using standard messaging', async () => {
+  const app = sdkFixture({});
+  app.request = () => { throw new Error('Must not fall back to ui/message'); };
+  assert.equal(app.chatgpt.supportsFollowUpMessage, false);
+  await assert.rejects(app.chatgpt.sendFollowUpMessage({ prompt: 'Synthetic confirmation.' }), /is not available/);
+  assert.equal(sdkFixture().chatgpt, null);
+});
+
 test('opening, redirecting, and failure events do not announce a submission', async () => {
-  const { embed, messages, toolCalls } = fixture();
+  const { embed, messages, followUps } = fixture();
   const emit = initializeForm(embed);
   emit('submitFailure');
   emit('idcomBookingError');
   assert.deepEqual(messages, []);
-  assert.deepEqual(toolCalls, []);
+  assert.deepEqual(followUps, []);
   navigate(embed, '?code=synthetic');
   await embed.pageLoad;
   await emit('bookingComplete');
   assert.deepEqual(messages, []);
-  assert.deepEqual(toolCalls, []);
+  assert.deepEqual(followUps, []);
 });
 
-test('confirmed booking reports status and updates context once without a user message or banner', async () => {
+test('confirmed booking requests one native follow-up without a user message or banner', async () => {
   const {
-    embed, form, messages, toolCalls, contexts,
+    embed, form, messages, followUps,
   } = fixture();
   const emit = initializeForm(embed);
   await Promise.all([emit('bookingComplete'), emit('bookingComplete')]);
-  assert.equal(toolCalls.length, 1);
-  assert.equal(toolCalls[0].name, 'report-hdfc-submission-status');
-  assert.equal(toolCalls[0].args.event, 'bookingComplete');
-  assert.equal(contexts.length, 1);
-  assert.equal(contexts[0].content, SUBMISSION_RESULT.content);
-  assert.equal(contexts[0].structuredContent, SUBMISSION_RESULT.structuredContent);
+  assert.equal(followUps.length, 1);
+  assert.match(followUps[0].prompt, /Your HDFC personal loan form has been submitted successfully\./);
+  assert.match(followUps[0].prompt, /\*\*Submission does not mean loan approval\.\*\*/);
   assert.deepEqual(messages, []);
   assert.deepEqual(embed.children, [form]);
 });
 
-test('a replaced model cannot report stale completion', async () => {
-  const { embed, toolCalls } = fixture();
-  const previous = initializeForm(embed);
-  const current = initializeForm(embed);
-  await previous('bookingComplete');
-  assert.deepEqual(toolCalls, []);
-  await current('bookingComplete');
-  assert.equal(toolCalls.length, 1);
-});
-
-test('disconnecting the widget detaches its completion subscription', async () => {
-  const { embed, toolCalls } = fixture();
-  const emit = initializeForm(embed);
-  embed.disconnectedCallback();
-  await emit('bookingComplete');
-  assert.deepEqual(toolCalls, []);
-});
-
-[
-  ['tool refusal', async () => ({ isError: true }), undefined],
-  ['tool rejection', async () => { throw new Error('Synthetic host error'); }, undefined],
-  ['context rejection', undefined, async () => { throw new Error('Synthetic context error'); }],
-].forEach(([name, callTool, updateModelContext]) => {
-  test(`${name} shows a status-sharing error without changing the successful form or retrying`, async () => {
+test('unsupported hosts show one error without falling back to a visible user message', async () => {
+  await Promise.all([null, sdkFixture({}).chatgpt].map(async (chatgpt) => {
     const {
-      embed, form, messages, toolCalls, contexts,
-    } = fixture(undefined, callTool, updateModelContext);
+      embed, form, messages,
+    } = fixture();
+    embed.bridge.chatgpt = chatgpt;
     const emit = initializeForm(embed);
     await emit('bookingComplete');
     await emit('bookingComplete');
-    assert.equal(toolCalls.length, 1);
-    assert.equal(contexts.length, name === 'context rejection' ? 1 : 0);
     assert.deepEqual(messages, []);
     assert.equal(embed.dataset.status, 'rendered');
     assert.equal(embed.children[0], form);
     assert.equal(embed.children[1].getAttribute('role'), 'alert');
-    assert.match(embed.children[1].textContent, /Unable to share the form submission status/);
+    assert.equal(embed.children.length, 2);
+  }));
+});
+
+test('a replaced model cannot announce stale completion', async () => {
+  const { embed, followUps } = fixture();
+  const previous = initializeForm(embed);
+  const current = initializeForm(embed);
+  await previous('bookingComplete');
+  assert.deepEqual(followUps, []);
+  await current('bookingComplete');
+  assert.equal(followUps.length, 1);
+});
+
+test('disconnecting the widget detaches its completion subscription', async () => {
+  const { embed, followUps } = fixture();
+  const emit = initializeForm(embed);
+  embed.disconnectedCallback();
+  await emit('bookingComplete');
+  assert.deepEqual(followUps, []);
+});
+
+[
+  ['refusal', async () => ({ isError: true })],
+  ['rejection', async () => { throw new Error('Synthetic follow-up error'); }],
+].forEach(([name, sendFollowUpMessage]) => {
+  test(`follow-up ${name} shows an error without changing the successful form or retrying`, async () => {
+    const {
+      embed, form, messages, followUps,
+    } = fixture(undefined, sendFollowUpMessage);
+    const emit = initializeForm(embed);
+    await emit('bookingComplete');
+    await emit('bookingComplete');
+    assert.equal(followUps.length, 1);
+    assert.deepEqual(messages, []);
+    assert.equal(embed.dataset.status, 'rendered');
+    assert.equal(embed.children[0], form);
+    assert.equal(embed.children[1].getAttribute('role'), 'alert');
+    assert.match(embed.children[1].textContent, /Unable to deliver the form submission confirmation/);
   });
 });
 
