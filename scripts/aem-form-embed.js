@@ -4,11 +4,11 @@ function resolvePageRequests(source) {
   const fetch = window.fetch.bind(window);
   window.fetch = async (input, options) => {
     const request = input instanceof Request ? input : null;
-    return fetch(request || new URL(input, source).href, options);
+    return fetch(request || new URL(input, source()).href, options);
   };
   const open = XMLHttpRequest.prototype.open;
   XMLHttpRequest.prototype.open = function openPageRequest(method, url, ...args) {
-    return open.call(this, method, new URL(url, source).href, ...args);
+    return open.call(this, method, new URL(url, source()).href, ...args);
   };
 }
 
@@ -99,11 +99,11 @@ export class AEMFormEmbed extends HTMLElement {
     this.addEventListener('aem-form-navigate', (event) => {
       if (event.target !== this) return;
       event.preventDefault();
-      this.showNavigationHandoff(event.detail?.url);
+      this.navigate(event.detail?.url);
     });
     this.dataset.status = 'loading';
     this.textContent = 'Loading form...';
-    this.load().catch((error) => {
+    this.pageLoad = this.load().catch((error) => {
       console.error('[AEM Form Embed]', error);
       this.dataset.status = 'error';
       document.body.classList.add('appear');
@@ -114,7 +114,68 @@ export class AEMFormEmbed extends HTMLElement {
     });
   }
 
-  showNavigationHandoff(url) {
+  navigate(url) {
+    const source = this.pageUrl || new URL(this.getAttribute('url'));
+    let target = typeof url === 'string' && url && URL.canParse(url, source)
+      ? new URL(url, source)
+      : null;
+    if (!target || target.protocol !== 'https:') {
+      this.showNavigationError('Cannot continue: the form supplied an invalid navigation URL.');
+      return;
+    }
+    if (target.origin === window.location.origin) {
+      target = new URL(`${source.origin}${target.pathname}${target.search}${target.hash}`);
+    }
+    if (target.origin !== new URL(this.getAttribute('url')).origin) {
+      this.showNavigationHandoff(target);
+      return;
+    }
+
+    const key = new URL(target);
+    key.hash = '';
+    key.searchParams.sort();
+    this.destinations ||= new Set();
+    if (this.destinations.has(key.href) || this.navigationFailed) return;
+    this.destinations.add(key.href);
+    this.pageLoad = this.pageLoad.then(async () => {
+      if (this.navigationFailed) return;
+      if (typeof this.pageBootstrap?.loadPage !== 'function') {
+        this.navigationFailed = true;
+        this.showNavigationError('Cannot render the next page: the source site must publish its page reload lifecycle first.');
+        return;
+      }
+      const form = this.querySelector('form');
+      if (form && form.dispatchEvent(new CustomEvent('aem-form-dispose', { cancelable: true }))) {
+        this.navigationFailed = true;
+        this.showNavigationError('Cannot render the next page: the source form must publish its reset hook first.');
+        return;
+      }
+      this.resources?.disconnect();
+      this.headResources?.disconnect();
+      this.pageHead?.forEach((node) => node.remove());
+      this.dataset.status = 'loading';
+      this.textContent = 'Loading next page...';
+      await this.renderPage(target, true);
+    }).catch(() => {
+      // eslint-disable-next-line no-console
+      console.error('[AEM Form Embed] Redirect page rendering failed; the callback was not retried.');
+      this.navigationFailed = true;
+      this.showNavigationError('Unable to render the next page. It has not been retried. Check the journey status before continuing.');
+    });
+  }
+
+  showNavigationError(text) {
+    this.resources?.disconnect();
+    this.dataset.status = 'error';
+    const message = document.createElement('p');
+    message.setAttribute('role', 'alert');
+    message.textContent = text;
+    this.replaceChildren(message);
+    document.body.classList.add('appear');
+    this.bridge.reportSize(window.innerWidth, 800);
+  }
+
+  showNavigationHandoff(target) {
     const panel = document.createElement('section');
     const message = document.createElement('p');
     message.setAttribute('role', 'status');
@@ -123,22 +184,6 @@ export class AEMFormEmbed extends HTMLElement {
     this.replaceChildren(panel);
     this.dataset.status = 'navigation-pending';
     this.bridge.reportSize(window.innerWidth, 800);
-
-    const source = this.getAttribute('url');
-    let target = typeof url === 'string' && url && URL.canParse(url, source)
-      ? new URL(url, source)
-      : null;
-    if (!target || target.protocol !== 'https:') {
-      this.dataset.status = 'error';
-      message.setAttribute('role', 'alert');
-      message.textContent = 'Cannot continue: the form supplied an invalid navigation URL.';
-      return;
-    }
-    if (target.origin === window.location.origin) {
-      target = new URL(
-        `${new URL(source).origin}${target.pathname}${target.search}${target.hash}`,
-      );
-    }
 
     message.textContent = 'Continue in your browser to proceed with the form.';
     const link = document.createElement('a');
@@ -176,13 +221,21 @@ export class AEMFormEmbed extends HTMLElement {
     await this.bridge.connect();
 
     window.Worker = undefined;
-    resolvePageRequests(source.href);
+    this.pageUrl = source;
+    resolvePageRequests(() => this.pageUrl.href);
+    await this.renderPage(source);
+  }
+
+  async renderPage(source, reload = false) {
     const response = await fetch(source.href, { credentials: 'omit', redirect: 'error' });
     if (!response.ok) throw new Error(`Unable to fetch form page: HTTP ${response.status}`);
     const page = new DOMParser().parseFromString(await response.text(), 'text/html');
-    if (!page.querySelector('main .form')) throw new Error('The source page does not contain a form block');
+    const hasForm = !!page.querySelector('main .form');
+    if (!hasForm && !reload) throw new Error('The source page does not contain a form block');
+    if (!page.querySelector('main')) throw new Error('The source page does not contain main content');
 
     // The existing iframe provides isolation; the site's scripts use its real document.
+    this.pageUrl = source;
     history.replaceState(null, '', `${source.pathname}${source.search}${source.hash}`);
     document.documentElement.lang = page.documentElement.lang || 'en';
     document.title = page.title;
@@ -194,6 +247,13 @@ export class AEMFormEmbed extends HTMLElement {
       code.textContent = JSON.stringify(definition);
     });
     const scripts = [...page.querySelectorAll('script')];
+    this.pageHead = new Set(page.head.childNodes);
+    this.headResources = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => this.pageHead.add(node));
+      });
+    });
+    this.headResources.observe(document.head, { childList: true });
     document.head.append(...page.head.childNodes);
     [...page.body.attributes].forEach(({ name, value }) => document.body.setAttribute(name, value));
     this.replaceChildren(...page.body.childNodes);
@@ -209,14 +269,27 @@ export class AEMFormEmbed extends HTMLElement {
       if (script.src.endsWith('/scripts/aem.js')) {
         window.hlx.codeBasePath = new URL('../', script.src).href.replace(/\/$/, '');
       }
+      if (new URL(script.src || source.href).pathname.endsWith('/scripts/scripts.js')) {
+        // ES modules stay cached; invoke the site's explicit lifecycle on subsequent pages.
+        // eslint-disable-next-line no-await-in-loop
+        this.pageBootstrap = await import(script.src);
+        if (reload) {
+          if (typeof this.pageBootstrap.loadPage !== 'function') {
+            throw new Error('The source page does not support reloading');
+          }
+          // eslint-disable-next-line no-await-in-loop
+          await this.pageBootstrap.loadPage();
+        }
+      }
     }
-    await waitForForm(this);
+    if (hasForm) await waitForForm(this);
     this.dataset.status = 'rendered';
     this.bridge.reportSize(window.innerWidth, 800);
   }
 
   disconnectedCallback() {
     this.resources?.disconnect();
+    this.headResources?.disconnect();
   }
 }
 
