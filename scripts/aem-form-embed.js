@@ -216,7 +216,7 @@ export class AEMFormEmbed extends HTMLElement {
     if (source.protocol !== 'https:') throw new TypeError('The form page URL must use HTTPS');
     this.bridge = new LLMApp({
       appInfo: { name: 'AEMFormEmbed', version: '0.1.0' },
-      appCapabilities: { availableDisplayModes: ['inline'] },
+      appCapabilities: { availableDisplayModes: ['inline', 'fullscreen'] },
     });
     await this.bridge.connect();
 
