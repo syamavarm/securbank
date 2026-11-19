@@ -125,12 +125,16 @@ export class AEMFormEmbed extends HTMLElement {
     if (this.submissionNotificationAttempted) return;
     this.submissionNotificationAttempted = true;
     try {
-      const result = await this.bridge.sendMessage('The form has been submitted successfully.');
-      if (result?.isError) throw new Error('Chat confirmation was refused');
+      const result = await this.bridge.callTool('report-hdfc-submission-status', { event: 'bookingComplete' });
+      if (result?.isError) throw new Error('Submission status report was refused');
+      await this.bridge.updateModelContext({
+        content: result.content,
+        structuredContent: result.structuredContent,
+      });
     } catch {
       const warning = document.createElement('p');
       warning.setAttribute('role', 'alert');
-      warning.textContent = 'Your form was submitted, but the chat confirmation could not be delivered.';
+      warning.textContent = 'Unable to share the form submission status with ChatGPT.';
       this.append(warning);
     }
   }
