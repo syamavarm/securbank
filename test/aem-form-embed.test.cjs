@@ -56,7 +56,8 @@ class Element extends EventTarget {
 
 function fixture(
   openLink = async () => ({}),
-  sendFollowUpMessage = async () => ({}),
+  sendMessage = async () => ({}),
+  initialState = null,
 ) {
   let Embed;
   vm.runInNewContext(source, {
@@ -75,15 +76,16 @@ function fixture(
   const form = new Element('form');
   const calls = [];
   const messages = [];
-  const followUps = [];
+  const states = [];
   const renders = [];
   let unloads = 0;
   embed.setAttribute('url', SOURCE);
   embed.bridge = {
     chatgpt: sdkFixture({
-      sendFollowUpMessage(options) {
-        followUps.push(options);
-        return sendFollowUpMessage(options);
+      widgetState: initialState,
+      setWidgetState(state) {
+        states.push(structuredClone(state));
+        this.widgetState = state;
       },
     }).chatgpt,
     reportSize() {},
@@ -93,7 +95,7 @@ function fixture(
     },
     sendMessage(message) {
       messages.push(message);
-      return Promise.resolve({});
+      return sendMessage(message);
     },
   };
   embed.load = async () => {
@@ -120,7 +122,7 @@ function fixture(
     form,
     calls,
     messages,
-    followUps,
+    states,
     renders,
     unloads: () => unloads,
   };
@@ -149,103 +151,92 @@ function navigate(embed, url) {
 
 const tick = () => new Promise((done) => { setImmediate(done); });
 
-test('SDK follow-up uses the native ChatGPT API, preserves its receiver, and never sends ui/message', async () => {
-  const options = { prompt: 'Synthetic confirmation.', scrollToBottom: false };
-  const api = {
-    async sendFollowUpMessage(input) {
-      assert.equal(this, api);
-      assert.equal(input, options);
-    },
-  };
-  const app = sdkFixture(api);
-  app.request = () => { throw new Error('Must not fall back to ui/message'); };
-  assert.equal(app.chatgpt.supportsFollowUpMessage, true);
-  await app.chatgpt.sendFollowUpMessage(options);
-});
-
-test('SDK follow-up explicitly rejects when unavailable instead of using standard messaging', async () => {
-  const app = sdkFixture({});
-  app.request = () => { throw new Error('Must not fall back to ui/message'); };
-  assert.equal(app.chatgpt.supportsFollowUpMessage, false);
-  await assert.rejects(app.chatgpt.sendFollowUpMessage({ prompt: 'Synthetic confirmation.' }), /is not available/);
-  assert.equal(sdkFixture().chatgpt, null);
-});
-
 test('opening, redirecting, and failure events do not announce a submission', async () => {
-  const { embed, messages, followUps } = fixture();
+  const { embed, messages, states } = fixture();
   const emit = initializeForm(embed);
   emit('submitFailure');
   emit('idcomBookingError');
   assert.deepEqual(messages, []);
-  assert.deepEqual(followUps, []);
+  assert.deepEqual(states, []);
   navigate(embed, '?code=synthetic');
   await embed.pageLoad;
   await emit('bookingComplete');
   assert.deepEqual(messages, []);
-  assert.deepEqual(followUps, []);
+  assert.deepEqual(states, []);
 });
 
-test('confirmed booking requests one native follow-up without a user message or banner', async () => {
+test('confirmed booking saves submitted state and sends the requested message once without a banner', async () => {
   const {
-    embed, form, messages, followUps,
-  } = fixture();
+    embed, form, messages, states,
+  } = fixture(undefined, undefined, { panel: 'details' });
   const emit = initializeForm(embed);
   await Promise.all([emit('bookingComplete'), emit('bookingComplete')]);
-  assert.equal(followUps.length, 1);
-  assert.match(followUps[0].prompt, /Your HDFC personal loan form has been submitted successfully\./);
-  assert.match(followUps[0].prompt, /\*\*Submission does not mean loan approval\.\*\*/);
-  assert.deepEqual(messages, []);
+  assert.deepEqual(states, [{ panel: 'details', status: 'submitted' }]);
+  assert.deepEqual(messages, ['I have submitted the form']);
   assert.deepEqual(embed.children, [form]);
 });
 
-test('unsupported hosts show one error without falling back to a visible user message', async () => {
-  await Promise.all([null, sdkFixture({}).chatgpt].map(async (chatgpt) => {
-    const {
-      embed, form, messages,
-    } = fixture();
-    embed.bridge.chatgpt = chatgpt;
-    const emit = initializeForm(embed);
-    await emit('bookingComplete');
-    await emit('bookingComplete');
-    assert.deepEqual(messages, []);
-    assert.equal(embed.dataset.status, 'rendered');
-    assert.equal(embed.children[0], form);
-    assert.equal(embed.children[1].getAttribute('role'), 'alert');
-    assert.equal(embed.children.length, 2);
-  }));
+test('a state-save failure does not suppress the chat notification or change the submitted form', async () => {
+  const {
+    embed, form, messages, states,
+  } = fixture();
+  embed.bridge.chatgpt.setWidgetState = () => { throw new Error('Synthetic state error'); };
+  const emit = initializeForm(embed);
+  await emit('bookingComplete');
+  await emit('bookingComplete');
+  assert.deepEqual(states, []);
+  assert.deepEqual(messages, ['I have submitted the form']);
+  assert.equal(embed.children[0], form);
+  assert.equal(embed.children[1].getAttribute('role'), 'alert');
+  assert.match(embed.children[1].textContent, /Unable to save the submitted widget state/);
+  assert.equal(embed.children.length, 2);
+});
+
+test('hosts without ChatGPT widget state still receive the chat message', async () => {
+  const {
+    embed, form, messages, states,
+  } = fixture();
+  embed.bridge.chatgpt = null;
+  await initializeForm(embed)('bookingComplete');
+  assert.deepEqual(states, []);
+  assert.deepEqual(messages, ['I have submitted the form']);
+  assert.deepEqual(embed.children, [form]);
 });
 
 test('a replaced model cannot announce stale completion', async () => {
-  const { embed, followUps } = fixture();
+  const { embed, messages, states } = fixture();
   const previous = initializeForm(embed);
   const current = initializeForm(embed);
   await previous('bookingComplete');
-  assert.deepEqual(followUps, []);
+  assert.deepEqual(messages, []);
+  assert.deepEqual(states, []);
   await current('bookingComplete');
-  assert.equal(followUps.length, 1);
+  assert.equal(messages.length, 1);
+  assert.equal(states.length, 1);
 });
 
 test('disconnecting the widget detaches its completion subscription', async () => {
-  const { embed, followUps } = fixture();
+  const { embed, messages, states } = fixture();
   const emit = initializeForm(embed);
   embed.disconnectedCallback();
   await emit('bookingComplete');
-  assert.deepEqual(followUps, []);
+  assert.deepEqual(messages, []);
+  assert.deepEqual(states, []);
 });
 
 [
   ['refusal', async () => ({ isError: true })],
-  ['rejection', async () => { throw new Error('Synthetic follow-up error'); }],
-].forEach(([name, sendFollowUpMessage]) => {
-  test(`follow-up ${name} shows an error without changing the successful form or retrying`, async () => {
+  ['rejection', async () => { throw new Error('Synthetic chat error'); }],
+].forEach(([name, sendMessage]) => {
+  test(`chat ${name} retains submitted state without changing the successful form or retrying`, async () => {
     const {
-      embed, form, messages, followUps,
-    } = fixture(undefined, sendFollowUpMessage);
+      embed, form, messages, states,
+    } = fixture(undefined, sendMessage);
     const emit = initializeForm(embed);
     await emit('bookingComplete');
     await emit('bookingComplete');
-    assert.equal(followUps.length, 1);
-    assert.deepEqual(messages, []);
+    assert.deepEqual(states, [{ status: 'submitted' }]);
+    assert.deepEqual(messages, ['I have submitted the form']);
     assert.equal(embed.dataset.status, 'rendered');
     assert.equal(embed.children[0], form);
     assert.equal(embed.children[1].getAttribute('role'), 'alert');

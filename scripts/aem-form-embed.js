@@ -124,24 +124,25 @@ export class AEMFormEmbed extends HTMLElement {
   async notifySubmission() {
     if (this.submissionNotificationAttempted) return;
     this.submissionNotificationAttempted = true;
-    try {
-      if (!this.bridge.chatgpt?.supportsFollowUpMessage) {
-        throw new Error('ChatGPT follow-up messages are not available');
+    const errors = [];
+    const { chatgpt } = this.bridge;
+    if (chatgpt) {
+      try {
+        chatgpt.setWidgetState({ ...chatgpt.widgetState, status: 'submitted' });
+      } catch {
+        errors.push('Unable to save the submitted widget state.');
       }
-      const reply = await this.bridge.chatgpt.sendFollowUpMessage({
-        prompt: `The HDFC form widget reported completion. Do not call tools or reopen the form.
-Reply with only the following confirmation:
-
-Your HDFC personal loan form has been submitted successfully.
-
-**Submission does not mean loan approval.** Please retain any application reference number provided
-and follow the bank's instructions for verification and next steps.`,
-      });
-      if (reply?.isError) throw new Error('Chat confirmation was refused');
+    }
+    try {
+      const result = await this.bridge.sendMessage('I have submitted the form');
+      if (result?.isError) throw new Error('Chat confirmation was refused');
     } catch {
+      errors.push('Unable to deliver the form submission confirmation in chat.');
+    }
+    if (errors.length) {
       const warning = document.createElement('p');
       warning.setAttribute('role', 'alert');
-      warning.textContent = 'Unable to deliver the form submission confirmation in chat.';
+      warning.textContent = errors.join(' ');
       this.append(warning);
     }
   }
