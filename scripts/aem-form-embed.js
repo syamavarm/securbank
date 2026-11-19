@@ -96,6 +96,13 @@ export class AEMFormEmbed extends HTMLElement {
   connectedCallback() {
     if (this.started) return;
     this.started = true;
+    this.addEventListener('formViewInitialized', ({ detail }) => {
+      this.submissionSubscription?.unsubscribe();
+      this.submissionSubscription = detail.formModel.subscribe(
+        () => this.notifySubmission(),
+        'bookingComplete',
+      );
+    });
     this.addEventListener('aem-form-navigate', (event) => {
       if (event.target !== this) return;
       event.preventDefault();
@@ -112,6 +119,20 @@ export class AEMFormEmbed extends HTMLElement {
       message.textContent = error.message;
       this.prepend(message);
     });
+  }
+
+  async notifySubmission() {
+    if (this.submissionNotificationAttempted) return;
+    this.submissionNotificationAttempted = true;
+    try {
+      const result = await this.bridge.sendMessage('The form has been submitted successfully.');
+      if (result?.isError) throw new Error('Chat confirmation was refused');
+    } catch {
+      const warning = document.createElement('p');
+      warning.setAttribute('role', 'alert');
+      warning.textContent = 'Your form was submitted, but the chat confirmation could not be delivered.';
+      this.append(warning);
+    }
   }
 
   navigate(url) {
@@ -150,6 +171,7 @@ export class AEMFormEmbed extends HTMLElement {
         this.showNavigationError('Cannot render the next page: the source form must publish its reset hook first.');
         return;
       }
+      this.submissionSubscription?.unsubscribe();
       this.resources?.disconnect();
       this.headResources?.disconnect();
       this.pageHead?.forEach((node) => node.remove());
@@ -288,6 +310,7 @@ export class AEMFormEmbed extends HTMLElement {
   }
 
   disconnectedCallback() {
+    this.submissionSubscription?.unsubscribe();
     this.resources?.disconnect();
     this.headResources?.disconnect();
   }
