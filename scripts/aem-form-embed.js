@@ -96,6 +96,11 @@ export class AEMFormEmbed extends HTMLElement {
   connectedCallback() {
     if (this.started) return;
     this.started = true;
+    this.addEventListener('aem-form-navigate', (event) => {
+      if (event.target !== this) return;
+      event.preventDefault();
+      this.showNavigationHandoff(event.detail?.url);
+    });
     this.dataset.status = 'loading';
     this.textContent = 'Loading form...';
     this.load().catch((error) => {
@@ -107,6 +112,55 @@ export class AEMFormEmbed extends HTMLElement {
       message.textContent = error.message;
       this.prepend(message);
     });
+  }
+
+  showNavigationHandoff(url) {
+    const panel = document.createElement('section');
+    const message = document.createElement('p');
+    message.setAttribute('role', 'status');
+    panel.append(message);
+    this.resources?.disconnect();
+    this.replaceChildren(panel);
+    this.dataset.status = 'navigation-pending';
+    this.bridge.reportSize(window.innerWidth, 800);
+
+    const source = this.getAttribute('url');
+    let target = typeof url === 'string' && url && URL.canParse(url, source)
+      ? new URL(url, source)
+      : null;
+    if (!target || target.protocol !== 'https:') {
+      this.dataset.status = 'error';
+      message.setAttribute('role', 'alert');
+      message.textContent = 'Cannot continue: the form supplied an invalid navigation URL.';
+      return;
+    }
+    if (target.origin === window.location.origin) {
+      target = new URL(
+        `${new URL(source).origin}${target.pathname}${target.search}${target.hash}`,
+      );
+    }
+
+    message.textContent = 'Continue in your browser to proceed with the form.';
+    const link = document.createElement('a');
+    link.href = target.href;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.referrerPolicy = 'no-referrer';
+    link.textContent = 'Continue in browser';
+    const showOpenError = () => {
+      link.removeAttribute('aria-disabled');
+      message.setAttribute('role', 'alert');
+      message.textContent = 'Unable to open the form site. Please try again.';
+    };
+    link.addEventListener('click', (click) => {
+      click.preventDefault();
+      if (link.getAttribute('aria-disabled') === 'true') return;
+      link.setAttribute('aria-disabled', 'true');
+      this.bridge.openLink(target.href).then((result) => {
+        if (result?.isError) showOpenError();
+      }, showOpenError);
+    });
+    panel.append(link);
   }
 
   async load() {
