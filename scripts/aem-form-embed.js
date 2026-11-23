@@ -1,4 +1,5 @@
 import { LLMApp } from './llmapps-sdk.js';
+import registerFormTools from './form-webmcp.js';
 
 function resolvePageRequests(source) {
   const fetch = window.fetch.bind(window);
@@ -98,6 +99,8 @@ export class AEMFormEmbed extends HTMLElement {
     this.started = true;
     this.addEventListener('formViewInitialized', ({ detail }) => {
       this.submissionSubscription?.unsubscribe();
+      this.unregisterFormTools?.();
+      this.unregisterFormTools = registerFormTools(detail.formModel);
       this.submissionSubscription = detail.formModel.subscribe(
         () => this.notifySubmission(),
         'bookingComplete',
@@ -184,6 +187,7 @@ export class AEMFormEmbed extends HTMLElement {
         return;
       }
       this.submissionSubscription?.unsubscribe();
+      this.unregisterFormTools?.();
       this.resources?.disconnect();
       this.headResources?.disconnect();
       this.pageHead?.forEach((node) => node.remove());
@@ -323,6 +327,7 @@ export class AEMFormEmbed extends HTMLElement {
 
   disconnectedCallback() {
     this.submissionSubscription?.unsubscribe();
+    this.unregisterFormTools?.();
     this.resources?.disconnect();
     this.headResources?.disconnect();
   }

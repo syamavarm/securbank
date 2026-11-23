@@ -9,6 +9,7 @@ const SOURCE = 'https://forms.example.test/content/loan';
 const SANDBOX = 'https://mcp-endpoint-test.web-sandbox.oaiusercontent.com';
 const source = readFileSync(resolve(__dirname, '../scripts/aem-form-embed.js'), 'utf8')
   .replace(/^import \{ LLMApp \} from '\.\/llmapps-sdk\.js';\n/, '')
+  .replace(/^import registerFormTools from '\.\/form-webmcp\.js';\n/m, '')
   .replace('export class AEMFormEmbed', 'class AEMFormEmbed');
 const sdkSource = readFileSync(resolve(__dirname, '../scripts/llmapps-sdk.js'), 'utf8')
   .replace(/^export (?:default )?/gm, '')
@@ -60,7 +61,13 @@ function fixture(
   initialState = null,
 ) {
   let Embed;
+  const toolRegistrations = [];
   vm.runInNewContext(source, {
+    registerFormTools(model) {
+      const registration = { model, active: true };
+      toolRegistrations.push(registration);
+      return () => { registration.active = false; };
+    },
     HTMLElement: Element,
     URL,
     CustomEvent,
@@ -120,6 +127,7 @@ function fixture(
   return {
     embed,
     form,
+    toolRegistrations,
     calls,
     messages,
     states,
@@ -201,6 +209,19 @@ test('hosts without ChatGPT widget state still receive the chat message', async 
   assert.deepEqual(states, []);
   assert.deepEqual(messages, ['I have submitted the form']);
   assert.deepEqual(embed.children, [form]);
+});
+
+test('WebMCP tools follow the current form model and are revoked on navigation and disconnect', async () => {
+  const { embed, toolRegistrations } = fixture();
+  initializeForm(embed);
+  initializeForm(embed);
+  assert.deepEqual(toolRegistrations.map(({ active }) => active), [false, true]);
+  navigate(embed, '?code=synthetic');
+  await embed.pageLoad;
+  assert.equal(toolRegistrations[1].active, false);
+  initializeForm(embed);
+  embed.disconnectedCallback();
+  assert.equal(toolRegistrations[2].active, false);
 });
 
 test('a replaced model cannot announce stale completion', async () => {
