@@ -99,7 +99,8 @@ export default function registerFormTools(form) {
       const result = await tool.execute(args);
       // eslint-disable-next-line no-console
       console.info(`[AEM Form Embed] WebMCP ${tool.name}`, { field: args?.field, success: result.success });
-      return result;
+      // ChatGPT's WebMCP examples return tool results as JSON text.
+      return JSON.stringify(result);
     },
   }));
   const cleanup = () => {

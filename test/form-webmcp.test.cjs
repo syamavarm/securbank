@@ -42,7 +42,14 @@ function registry() {
     tools,
     registerTool(tool, { signal }) {
       if (tools.has(tool.name)) throw new Error(`duplicate tool: ${tool.name}`);
-      tools.set(tool.name, tool);
+      tools.set(tool.name, {
+        ...tool,
+        async execute(args) {
+          const text = await tool.execute(args);
+          assert.equal(typeof text, 'string');
+          return JSON.parse(text);
+        },
+      });
       signal.addEventListener('abort', () => tools.delete(tool.name));
     },
   };
