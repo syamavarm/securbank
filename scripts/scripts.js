@@ -1,3 +1,4 @@
+// LLM Apps lifecycle v1: scripts/scripts.js
 import {
   sampleRUM,
   getMetadata,
@@ -241,7 +242,7 @@ function loadDelayed() {
   // load anything that can be postponed to the latest here
 }
 
-async function loadPage() {
+export async function loadPage() {
   await window.hlx.plugins.load('eager');
   await loadEager(document);
   await window.hlx.plugins.load('lazy');

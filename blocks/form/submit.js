@@ -1,3 +1,4 @@
+// LLM Apps lifecycle v1: blocks/form/submit.js
 import { DEFAULT_THANK_YOU_MESSAGE, getSubmitBaseUrl } from './constant.js';
 
 export function submitSuccess(e, form) {
@@ -5,7 +6,10 @@ export function submitSuccess(e, form) {
   const redirectUrl = form.dataset.redirectUrl || payload?.body?.redirectUrl;
   const thankYouMsg = form.dataset.thankYouMsg || payload?.body?.thankYouMessage;
   if (redirectUrl) {
-    window.location.assign(encodeURI(redirectUrl));
+    const navigation = new CustomEvent('aem-form-navigate', {
+      bubbles: true, cancelable: true, detail: { url: encodeURI(redirectUrl) },
+    });
+    if (form.dispatchEvent(navigation)) window.location.assign(encodeURI(redirectUrl));
   } else {
     let thankYouMessage = form.parentNode.querySelector('.form-message.success-message');
     if (!thankYouMessage) {

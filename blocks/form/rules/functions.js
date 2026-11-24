@@ -1,3 +1,4 @@
+// LLM Apps lifecycle v1: blocks/form/rules/functions.js
 /** ***********************************************************************
  * ADOBE CONFIDENTIAL
  * ___________________
@@ -131,7 +132,14 @@ function defaultSubmitSuccessHandler(globals) {
   const { form } = globals;
   if (submitSuccessResponse) {
     if (submitSuccessResponse.redirectUrl) {
-      window.location.href = encodeURI(submitSuccessResponse.redirectUrl);
+      const navigation = new CustomEvent('aem-form-navigate', {
+        bubbles: true, cancelable: true,
+        detail: { url: encodeURI(submitSuccessResponse.redirectUrl) },
+      });
+      const element = document.getElementById(`${form.$id}`);
+      if (!element || element.dispatchEvent(navigation)) {
+        window.location.href = encodeURI(submitSuccessResponse.redirectUrl);
+      }
     } else if (submitSuccessResponse.thankYouMessage) {
       const formContainerElement = document.getElementById(`${form.$id}`);
       const thankYouMessage = document.createElement('div');
