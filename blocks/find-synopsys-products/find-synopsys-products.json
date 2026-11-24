@@ -1,0 +1,141 @@
+{
+  "arguments": {
+    "product_family": "Silicon Design"
+  },
+  "records": [
+    {
+      "id": "synopsys-products-1",
+      "name": "Fusion Compiler",
+      "description": "Fusion Compiler features a unique RTL-to-GDSII architecture that delivers superior levels of power, performance and area out-of-the-box, along with industry-best turnaround time.",
+      "features": [
+        "Maximize PPA: Unified RTL-to-GDSII engines unlock top performance, power & area results",
+        "Single Shell: Single, integrated data model architecture for unmatched capacity, scalability, & productivity",
+        "Golden Signoff: Built-in signoff timing, parasitic extraction, & power analysis eliminate design iterations"
+      ],
+      "price": null,
+      "image_url": "https://images.synopsys.com/is/image/synopsys/fusion-compiler-hero?qlt=82&ts=1762538930389&$responsive$&fit=constrain&dpr=off&wid=400",
+      "source_url": "https://www.synopsys.com/implementation-and-signoff/physical-implementation/fusion-compiler.html",
+      "product_id": "fusion-compiler",
+      "product_family": "Silicon Design",
+      "industries": [],
+      "short_description": "Discover Fusion Compiler for superior power, performance, and area (PPA) with a unique RTL-to-GDSII architecture. Achieve faster design turnaround times."
+    },
+    {
+      "id": "synopsys-products-2",
+      "name": "Custom Compiler",
+      "description": "Synopsys Custom Compiler, enabled with Synopsys Multiphysics Fusion capabilities, is a modern design environment for full-custom analog, custom digital, RF, and mixed-signal IC design.",
+      "features": [
+        "Mixed-signal design entry, design debug, simulation management, analysis, and reporting",
+        "Fast, user-friendly polygon editing and visually assisted automation that delivers 2-10X higher productivity, especially for advanced-node FinFET designs",
+        "Built-in verification capabilities, including design rule checking, electromigration analysis, and parasitic extraction",
+        "Integrated multiphysics HFSS-IC analysis",
+        "Support for templates, early parasitic simulation, and multiphysics-aware analysis"
+      ],
+      "price": null,
+      "image_url": null,
+      "source_url": "https://www.synopsys.com/implementation-and-signoff/custom-design-platform/custom-compiler.html",
+      "product_id": "custom-compiler",
+      "product_family": "Silicon Design",
+      "industries": [],
+      "short_description": "Discover Synopsys' Custom Compiler for full-custom IC design. Benefit from industry-leading productivity, mixed-signal design entry, and visually-assisted automation."
+    },
+    {
+      "id": "synopsys-products-3",
+      "name": "3DIC Compiler",
+      "description": "The Synopsys 3DIC Compiler platform enables efficient multi-die/advanced package co-design and optimization for 2.5D and 3D multi-die designs.",
+      "features": [
+        "Seamless, in-design, signoff-quality multiphysics solvers for thermal, power integrity, signal integrity, and stress analysis, enabled by Synopsys Multiphysics Fusion capabilities",
+        "Automated high-speed die-to-die routing for UCIe and HBM improves efficiency, signal integrity, and scalability.",
+        "Support for a wide range of advanced packaging technologies, including interposer-based designs, silicon interposer, organic interposer, LSI bridge, fanout, and system-on-wafer, provides flexibility.",
+        "Support for major foundries including TSMC, Samsung, Intel Foundry, GlobalFoundries, Rapidus, and UMC.",
+        "Integration with silicon-proven Synopsys IP streamlines implementation and IP integration.",
+        "Combination of 3DIC Compiler, Synopsys TestMAX and Silicon Lifecycle Management solutions enables test, repair, & analytics functions."
+      ],
+      "price": null,
+      "image_url": "https://images.synopsys.com/is/image/synopsys/3dic-compiler-fig1-1?qlt=82&ts=1759774074176&$responsive$&fit=constrain&dpr=off&wid=400",
+      "source_url": "https://www.synopsys.com/implementation-and-signoff/3dic-design.html",
+      "product_id": "3dic-design",
+      "product_family": "Silicon Design",
+      "industries": [
+        "HPC",
+        "AI"
+      ],
+      "short_description": "Discover Synopsys 3DIC Compiler for efficient 2.5D and 3D multi-die designs. Achieve unmatched scalability, high productivity, and golden signoff."
+    },
+    {
+      "id": "synopsys-products-4",
+      "name": "PrimeTime",
+      "description": "The PrimeTime Suite delivers fast, memory-efficient scalar, distributed, and multicore computing, along with distributed multi-scenario analysis for advanced SoC and multi-die designs.",
+      "features": [
+        "Crosstalk delay and signal integrity analysis",
+        "Constraint (SDC) consistency checking",
+        "Advanced On-chip variation (AOCV)",
+        "Physically-aware ECO guidance for timing, DRC and power recovery",
+        "Parametric on-chip variation (POCV)",
+        "Machine learning based power recovery and PBA",
+        "Simultaneous multi-voltage analysis with DVFS",
+        "Aging-aware STA",
+        "Hierarchical analysis",
+        "Distributed multi-scenario analysis",
+        "HyperGrid distributed analysis",
+        "IR-aware, thermal-aware and stress-aware timing analysis"
+      ],
+      "price": null,
+      "image_url": null,
+      "source_url": "https://www.synopsys.com/implementation-and-signoff/signoff/primetime.html",
+      "product_id": "primetime",
+      "product_family": "Silicon Design",
+      "industries": [
+        "AI",
+        "HPC"
+      ],
+      "short_description": "PrimeTime Static timing analysis provides full chip timing with signal integrity, advance node accuracy and ECO guidance."
+    },
+    {
+      "id": "synopsys-products-9",
+      "name": "Synplify",
+      "description": "Synplify FPGA synthesis software is the industry standard for producing high-performance and cost-effective FPGA designs.",
+      "features": [
+        "Advanced Verilog, System Verilog and VHDL support",
+        "Best quality of results (QoR) for timing performance and area/cost reduction",
+        "Support for high reliability and safety-critical design including DO-254, ISO 26262 and IEC 61508",
+        "Accelerated runtimes delivering up to 3X runtimes with support for up to 8 processors per license",
+        "Distributed synthesis with support for single or multiple machines",
+        "Integrated Identify RTL Debugger to quickly find functional errors",
+        "FSM Compiler and FSM Explorer for automatic extraction and optimization of finite state machines from RTL",
+        "Integration with VCS and Verdi"
+      ],
+      "price": null,
+      "image_url": "https://images.synopsys.com/is/image/synopsys/fpga-platform-wp-fig5?qlt=82&ts=1711643897219&$responsive$&fit=constrain&dpr=off&wid=400",
+      "source_url": "https://www.synopsys.com/implementation-and-signoff/fpga-based-design/synplify.html",
+      "product_id": "synplify",
+      "product_family": "Silicon Design",
+      "industries": [
+        "Medical",
+        "Automotive",
+        "Industrial automation",
+        "Communications",
+        "Military",
+        "Aerospace"
+      ],
+      "short_description": "The Synplify FPGA logic synthesis software is the industry standard for producing high-performance and cost-effective FPGA designs."
+    },
+    {
+      "id": "synopsys-products-10",
+      "name": "IC Validator",
+      "description": "Synopsys IC Validator physical verification high-performance signoff solution improves productivity for customers at all process nodes, from mature to advanced.",
+      "features": [
+        "Distributed processing scalability to over 4,000 CPU cores",
+        "Same-day design rule checking (DRC), layout versus schematic (LVS), and fill turnaround time",
+        "Seamless integration with Fusion Compiler and IC Compiler II"
+      ],
+      "price": null,
+      "image_url": null,
+      "source_url": "https://www.synopsys.com/implementation-and-signoff/physical-verification.html",
+      "product_id": "physical-verification",
+      "product_family": "Silicon Design",
+      "industries": [],
+      "short_description": "Boost productivity with Synopsys IC Validator. Achieve accurate, fast physical verification for all process nodes with seamless integration and scalability."
+    }
+  ]
+}
