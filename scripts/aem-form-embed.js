@@ -1,4 +1,4 @@
-/* LLM Apps form widget, generated: sha256=7f4ef33e9eabbbc224f460dc468aaf3712f2df36717b0395822a1cc8b63535d7 */
+/* LLM Apps form widget, generated: sha256=68d0c049a9c29093b8fc3ae55e36c3295713f4c89ebf70c5d371d96137dcfdeb */
 import { LLMApp } from './llmapps-sdk.js';
 
 function resolvePageRequests(source) {
@@ -218,10 +218,56 @@ export class AEMFormEmbed extends HTMLElement {
     }
     this.dataset.status = 'rendered';
     this.measure();
+    this.subscribeToSubmission();
+  }
+
+  subscribeToSubmission() {
+    if (this.submissionStarted) return;
+    this.submissionStarted = true;
+    if (typeof this.bridge?.sendMessage !== 'function') {
+      console.warn('[AEM Form Embed] SDK sendMessage is unavailable; submission messages are disabled.');
+      return;
+    }
+    const notify = (success) => {
+      if (this.lifecycle?.signal.aborted || this.submissionSucceeded || (!success && this.submissionFailed)) return;
+      if (success) this.submissionSucceeded = true;
+      else this.submissionFailed = true;
+      Promise.resolve().then(() => {
+        if (this.lifecycle?.signal.aborted) return undefined;
+        return this.bridge.sendMessage(success
+          ? 'The form has been submitted.' : 'The form could not be submitted.');
+      }).then((response) => {
+        if (response?.isError) throw new Error('The host rejected the submission message.');
+      }).catch((error) => {
+        if (!this.submissionMessageWarning) {
+          this.submissionMessageWarning = true;
+          console.warn('[AEM Form Embed] Unable to send submission message.', error);
+        }
+      });
+    };
+    const deadline = Date.now() + 30000;
+    const observe = () => {
+      if (this.lifecycle?.signal.aborted) return;
+      const model = window.myForm;
+      if (typeof model?.subscribe === 'function') {
+        this.submissionSubscriptions = [
+          model.subscribe(() => notify(true), 'submitSuccess'),
+          model.subscribe(() => notify(false), 'submitFailure'),
+          model.subscribe(() => notify(false), 'submitError'),
+        ];
+      } else if (Date.now() >= deadline) {
+        console.warn('[AEM Form Embed] Form model unavailable; submission messages are disabled.');
+      } else {
+        this.submissionTimer = setTimeout(observe, 250);
+      }
+    };
+    observe();
   }
 
   disconnectedCallback() {
     this.lifecycle?.abort();
+    clearTimeout(this.submissionTimer);
+    this.submissionSubscriptions?.forEach((subscription) => subscription?.unsubscribe?.());
     this.sizeObserver?.disconnect();
     this.resources?.disconnect();
     this.headResources?.disconnect();
