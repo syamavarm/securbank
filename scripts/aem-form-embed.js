@@ -1,4 +1,4 @@
-/* LLM Apps form widget, generated: sha256=b8a817b324d9d0bca36413c5b2c74c3a817d8092bf3e8d6711fa6d7217a226bc */
+/* LLM Apps form widget, generated: sha256=856e701c106f2f46b792e3b548641c85c3babe54b0b1eebdf166c1095695010e */
 import { LLMApp } from './llmapps-sdk.js';
 
 function resolvePageRequests(source) {
@@ -240,7 +240,6 @@ export class AEMFormPage extends HTMLElement {
   connectedCallback() {
     if (this.started) return;
     this.started = true;
-    this.controller = new AbortController();
     this.pageLoad = this.load().catch((error) => {
       console.error('[AEM Form Embed] Widget page:', error);
       this.setAttribute('role', 'alert');
@@ -249,29 +248,21 @@ export class AEMFormPage extends HTMLElement {
   }
 
   async load() {
-    const url = new URL(this.getAttribute('url'));
-    if (url.protocol !== 'https:' || url.username || url.password
-      || url.origin !== new URL(import.meta.url).origin || url.search || url.hash) {
-      throw new Error('The widget page must use the adapter HTTPS origin without credentials or query parameters.');
+    const invalidUrl = 'The form page must use an absolute HTTPS URL without credentials.';
+    let url;
+    try {
+      url = new URL(this.getAttribute('url') || '');
+    } catch {
+      throw new Error(invalidUrl);
     }
-    url.pathname += url.pathname.endsWith('/') ? 'index.plain.html' : '.plain.html';
-    const response = await fetch(url.href, {
-      credentials: 'omit', redirect: 'error', signal: this.controller?.signal,
-    });
-    if (!response.ok) throw new Error(`Widget page HTTP ${response.status}`);
-    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
-    if (this.controller?.signal.aborted) return;
-    const forms = page.querySelectorAll('aem-form-embed');
-    if (forms.length !== 1) throw new Error('The widget page must contain exactly one aem-form-embed.');
+    if (url.protocol !== 'https:' || url.username || url.password) throw new Error(invalidUrl);
+    const fragment = new URLSearchParams(url.hash.slice(1));
+    const formId = fragment.get('form-id');
+    if (formId !== null) url.hash = '';
     const element = document.createElement('aem-form-embed');
-    ['url', 'form-id'].forEach((name) => {
-      if (forms[0].hasAttribute(name)) element.setAttribute(name, forms[0].getAttribute(name));
-    });
+    element.setAttribute('url', url.href);
+    if (formId !== null) element.setAttribute('form-id', formId);
     this.replaceWith(element);
-  }
-
-  disconnectedCallback() {
-    this.controller?.abort();
   }
 }
 
