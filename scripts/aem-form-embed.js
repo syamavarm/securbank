@@ -1,4 +1,4 @@
-/* LLM Apps form widget, generated: sha256=856e701c106f2f46b792e3b548641c85c3babe54b0b1eebdf166c1095695010e */
+/* LLM Apps form widget, generated: sha256=7f4ef33e9eabbbc224f460dc468aaf3712f2df36717b0395822a1cc8b63535d7 */
 import { LLMApp } from './llmapps-sdk.js';
 
 function resolvePageRequests(source) {
@@ -172,10 +172,13 @@ export class AEMFormEmbed extends HTMLElement {
     const identity = this.getAttribute('form-id');
     const selected = new Set();
     page.querySelectorAll('main .form pre code').forEach((code) => {
-      const definition = JSON.parse(code.textContent);
+      const parsed = JSON.parse(code.textContent);
+      const encoded = typeof parsed === 'string';
+      const definition = encoded ? JSON.parse(parsed) : parsed;
       if (identity && definition.id === identity) selected.add(code.closest('.form'));
       absoluteImagePaths(definition, source);
-      code.textContent = JSON.stringify(definition);
+      const updated = JSON.stringify(definition);
+      code.textContent = encoded ? JSON.stringify(updated) : updated;
     });
     const forms = [...page.querySelectorAll('main .form')];
     if (forms.length > 1) {
