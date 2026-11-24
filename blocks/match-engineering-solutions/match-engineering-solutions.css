@@ -1,0 +1,516 @@
+@charset "UTF-8";
+
+.match-engineering-solutions {
+  --colors-surface: #fff;
+  --colors-surface-secondary: #f9f9f9;
+  --colors-text: #0d0d0d;
+  --colors-text-secondary: #5d5d5d;
+  --colors-text-tertiary: #8f8f8f;
+  --colors-border: rgb(13 13 13 / 10%);
+  --colors-focus-ring: #0169cc;
+  --colors-brand-accent: #316aca;
+  --colors-on-brand-accent: #fff;
+  --colors-brand-secondary: #7b3fb5;
+  --colors-on-brand-secondary: #fff;
+  --font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Noto Sans", helvetica, arial, sans-serif;
+  --typography-title-font-size: 1rem;
+  --typography-title-font-weight: 600;
+  --typography-title-line-height: 1.5rem;
+  --typography-body-font-size: 1rem;
+  --typography-body-font-weight: 400;
+  --typography-body-line-height: 1.5rem;
+  --typography-body-small-font-size: 0.875rem;
+  --typography-body-small-line-height: 1.25rem;
+  --typography-caption-font-size: 0.75rem;
+  --typography-caption-line-height: 1.125rem;
+  --rounded-sm: 6px;
+  --rounded-md: 8px;
+  --rounded-lg: 10px;
+  --rounded-xl: 12px;
+  --rounded-2xl: 16px;
+  --rounded-full: 9999px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --components-button-height: 36px;
+  --components-badge-height: 22px;
+  --card-width: 18.5rem;
+  --thumb-size: 4rem;
+  --hover-overlay: rgb(13 13 13 / 6%);
+  --primary-hover: #2a5bb0;
+
+  color-scheme: light;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  max-width: 100%;
+  margin: 0;
+  padding: var(--spacing-lg) 0;
+  background: var(--colors-surface);
+  color: var(--colors-text);
+  font-family: var(--font-family);
+  font-size: 1rem;
+  line-height: normal;
+  -webkit-font-smoothing: antialiased;
+}
+
+@media (prefers-color-scheme: dark) {
+  .match-engineering-solutions:not([data-theme="light"]) {
+    --colors-surface: #212121;
+    --colors-surface-secondary: #181818;
+    --colors-text: #fff;
+    --colors-text-secondary: #afafaf;
+    --colors-text-tertiary: #8f8f8f;
+    --colors-border: rgb(255 255 255 / 12%);
+    --colors-focus-ring: #0285ff;
+    --colors-brand-accent: #4b86e9;
+    --colors-on-brand-accent: #0d0d0d;
+    --hover-overlay: rgb(255 255 255 / 8%);
+    --primary-hover: #6a9cef;
+
+    color-scheme: dark;
+  }
+}
+
+.match-engineering-solutions[data-theme="dark"] {
+  --colors-surface: #212121;
+  --colors-surface-secondary: #181818;
+  --colors-text: #fff;
+  --colors-text-secondary: #afafaf;
+  --colors-text-tertiary: #8f8f8f;
+  --colors-border: rgb(255 255 255 / 12%);
+  --colors-focus-ring: #0285ff;
+  --colors-brand-accent: #4b86e9;
+  --colors-on-brand-accent: #0d0d0d;
+  --hover-overlay: rgb(255 255 255 / 8%);
+  --primary-hover: #6a9cef;
+
+  color-scheme: dark;
+}
+
+.match-engineering-solutions,
+.match-engineering-solutions *,
+.match-engineering-solutions *::before,
+.match-engineering-solutions *::after {
+  box-sizing: border-box;
+}
+
+.match-engineering-solutions ::selection {
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+}
+
+.match-engineering-solutions .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  text-align: center;
+}
+
+/* Global boilerplate collisions: header height, heading and paragraph margins */
+.match-engineering-solutions .widget-head {
+  height: auto;
+}
+
+.match-engineering-solutions .widget-head,
+.match-engineering-solutions .jump,
+.match-engineering-solutions .actions,
+.match-engineering-solutions .notice,
+.match-engineering-solutions .status {
+  padding: 0 var(--spacing-lg);
+}
+
+.match-engineering-solutions .widget-title {
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--typography-title-font-size);
+  font-weight: var(--typography-title-font-weight);
+  line-height: var(--typography-title-line-height);
+  text-wrap: balance;
+  scroll-margin: 0;
+}
+
+.match-engineering-solutions .widget-count {
+  margin: 0;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  color: var(--colors-text-secondary);
+}
+
+.match-engineering-solutions .notice {
+  margin: 0;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  color: var(--colors-text-secondary);
+}
+
+.match-engineering-solutions .status {
+  margin: calc(var(--spacing-sm) * -1) 0 0;
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+  color: var(--colors-text-secondary);
+}
+
+.match-engineering-solutions .status:empty {
+  display: none;
+}
+
+.match-engineering-solutions .request {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs) var(--spacing-lg);
+  margin: var(--spacing-sm) 0 0;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.match-engineering-solutions .request-item {
+  display: flex;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+
+.match-engineering-solutions .request-goal {
+  flex-basis: 100%;
+}
+
+.match-engineering-solutions .request dt {
+  color: var(--colors-text-secondary);
+}
+
+.match-engineering-solutions .request dt::after {
+  content: ":";
+}
+
+.match-engineering-solutions .request dd {
+  margin: 0;
+  color: var(--colors-text);
+}
+
+.match-engineering-solutions .jump {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.match-engineering-solutions .jump-pill,
+.match-engineering-solutions .jump-pill:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 32px;
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--colors-border);
+  border-radius: var(--rounded-full);
+  background: var(--colors-surface);
+  color: var(--colors-text);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  text-decoration: none;
+  overflow-wrap: normal;
+  transition: background-color 160ms ease-out;
+}
+
+.match-engineering-solutions .jump-pill:hover {
+  background: var(--colors-surface-secondary);
+}
+
+.match-engineering-solutions .jump-count {
+  font-size: var(--typography-caption-font-size);
+  color: var(--colors-brand-accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.match-engineering-solutions .areas {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.match-engineering-solutions .carousel {
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: var(--spacing-lg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--colors-border) transparent;
+  border-radius: var(--rounded-xl);
+}
+
+.match-engineering-solutions .carousel:focus-visible {
+  outline: 2px solid var(--colors-focus-ring);
+  outline-offset: -2px;
+}
+
+.match-engineering-solutions .track {
+  display: flex;
+  gap: var(--spacing-md);
+  margin: 0;
+  padding: 2px var(--spacing-lg) var(--spacing-md);
+  list-style: none;
+  width: max-content;
+}
+
+.match-engineering-solutions .area-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+  width: var(--card-width);
+  padding: var(--spacing-md);
+  border: 1px solid var(--colors-border);
+  border-radius: var(--rounded-xl);
+  background: var(--colors-surface);
+  scroll-snap-align: start;
+  scroll-margin-inline-start: var(--spacing-lg);
+  transition: border-color 160ms ease-out, box-shadow 160ms ease-out;
+}
+
+.match-engineering-solutions .area-card:has(.area-pick:checked) {
+  border-color: var(--colors-brand-accent);
+  box-shadow: inset 0 0 0 1px var(--colors-brand-accent);
+}
+
+.match-engineering-solutions .area-pick {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  pointer-events: none;
+}
+
+.match-engineering-solutions .area-head {
+  display: grid;
+  position: relative;
+  grid-template-columns: var(--thumb-size) 1fr;
+  align-items: start;
+  gap: var(--spacing-md);
+  margin: calc(var(--spacing-xs) * -1);
+  padding: var(--spacing-xs);
+  border-radius: var(--rounded-md);
+  cursor: pointer;
+}
+
+.match-engineering-solutions .area-head:hover {
+  background: var(--hover-overlay);
+}
+
+.match-engineering-solutions .area-pick:focus-visible + .area-head {
+  outline: 2px solid var(--colors-focus-ring);
+  outline-offset: 2px;
+}
+
+.match-engineering-solutions .area-thumb {
+  display: block;
+  width: var(--thumb-size);
+  max-width: none;
+  height: var(--thumb-size);
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: var(--rounded-lg);
+  background: var(--colors-surface-secondary);
+  outline: 1px solid var(--colors-border);
+  outline-offset: -1px;
+}
+
+.match-engineering-solutions .area-title {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+  min-width: 0;
+}
+
+.match-engineering-solutions .area-name {
+  font-size: var(--typography-title-font-size);
+  font-weight: var(--typography-title-font-weight);
+  line-height: var(--typography-title-line-height);
+  overflow-wrap: break-word;
+  hyphens: manual;
+}
+
+.match-engineering-solutions .badge {
+  display: inline-flex;
+  align-items: center;
+  height: var(--components-badge-height);
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--rounded-full);
+  background: var(--colors-surface-secondary);
+  color: var(--colors-brand-accent);
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+  box-shadow: inset 0 0 0 1px var(--colors-border);
+}
+
+.match-engineering-solutions .area-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: absolute;
+  top: calc(var(--spacing-xs) * -1);
+  left: calc(var(--spacing-xs) * -1);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--rounded-full);
+  border: 2px solid var(--colors-surface);
+  background: var(--colors-surface);
+  box-shadow: 0 0 0 1px var(--colors-border);
+  color: transparent;
+  transition: background-color 160ms ease-out, color 160ms ease-out;
+}
+
+/* Check mark drawn in CSS, matching the 16px stroked check of the design */
+.match-engineering-solutions .check-mark {
+  display: block;
+  width: 6px;
+  height: 10px;
+  margin-top: -2px;
+  border-right: 2px solid currentcolor;
+  border-bottom: 2px solid currentcolor;
+  border-radius: 1px;
+  transform: rotate(40deg);
+}
+
+.match-engineering-solutions .area-pick:checked + .area-head .area-check {
+  box-shadow: 0 0 0 1px var(--colors-brand-accent);
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+}
+
+.match-engineering-solutions .area-desc {
+  flex: 1;
+  margin: 0;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  color: var(--colors-text-secondary);
+}
+
+.match-engineering-solutions .area-link,
+.match-engineering-solutions .area-link:hover {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+  align-self: flex-start;
+  min-height: 24px;
+  color: var(--colors-brand-accent);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+  overflow-wrap: normal;
+  border-radius: var(--rounded-sm);
+}
+
+.match-engineering-solutions .area-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* Outbound arrow drawn in CSS, matching the 14px stroked arrow of the design */
+.match-engineering-solutions .link-icon {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.match-engineering-solutions .link-icon::before {
+  content: "";
+  position: absolute;
+  top: 2.4px;
+  right: 2.4px;
+  width: 6.3px;
+  height: 6.3px;
+  border-top: 1.4px solid currentcolor;
+  border-right: 1.4px solid currentcolor;
+}
+
+.match-engineering-solutions .link-icon::after {
+  content: "";
+  position: absolute;
+  top: 6.8px;
+  left: 1.6px;
+  width: 10.6px;
+  height: 1.4px;
+  background: currentcolor;
+  border-radius: 1px;
+  transform: rotate(-45deg);
+}
+
+/* Overrides the footer block's global footer background and font size */
+.match-engineering-solutions .actions {
+  display: flex;
+  background: transparent;
+  font-size: inherit;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+}
+
+/* Overrides boilerplate button.button: border, nowrap, overflow and inline-flex */
+.match-engineering-solutions .button {
+  display: inline-block;
+  max-width: none;
+  min-height: var(--components-button-height);
+  margin: 0;
+  padding: var(--spacing-sm) var(--spacing-lg);
+  border: 0;
+  border-radius: var(--rounded-full);
+  font-family: inherit;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  transition: background-color 160ms ease-out;
+}
+
+.match-engineering-solutions .button-primary {
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+}
+
+.match-engineering-solutions .button-primary:hover {
+  background: var(--primary-hover);
+}
+
+.match-engineering-solutions .button-secondary {
+  background: var(--colors-surface-secondary);
+  color: var(--colors-text);
+  box-shadow: inset 0 0 0 1px var(--colors-border);
+}
+
+.match-engineering-solutions .button-secondary:hover {
+  background: var(--hover-overlay);
+}
+
+.match-engineering-solutions .button:focus-visible,
+.match-engineering-solutions .jump-pill:focus-visible,
+.match-engineering-solutions .area-link:focus-visible {
+  outline: 2px solid var(--colors-focus-ring);
+  outline-offset: 2px;
+}
+
+/* !important is intentional: a reduced-motion preference must override every transition */
+@media (prefers-reduced-motion: reduce) {
+  .match-engineering-solutions *,
+  .match-engineering-solutions *::before,
+  .match-engineering-solutions *::after {
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .match-engineering-solutions .carousel {
+    scroll-behavior: smooth;
+  }
+}
