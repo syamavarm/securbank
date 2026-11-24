@@ -1,0 +1,412 @@
+/* eslint-disable no-underscore-dangle */
+/*
+* AEM Embed WebComponent — powered by LLMApps SDK
+ *
+ * Loads AEM EDS content into any MCP Apps host (ChatGPT, Claude, etc.)
+ * and passes an MCPBridge instance to each block for tool data and interaction.
+ *
+ * Block contract:  export default function decorate(block, bridge) { ... }
+ *   - bridge.toolResult              → Promise<params> (one-shot, first tool result)
+ *   - bridge.onToolResult(cb)        → every tool result, for widgets pinned across multiple calls
+ *   - bridge.callTool(name, args)    → call another MCP tool from the UI
+ *   - bridge.sendMessage(textOrParams) → send text or rich user content;
+ *       openai/message draft/target options require bridge.supportsMessageOptions
+ *   - bridge.updateModelContext(input) → update model context (string or
+ *       { content?, structuredContent? }); resolves { updateId?, raw }
+ *   - bridge.openLink(url)           → open external link via host
+ *   - bridge.requestDisplayMode(mode)→ request inline/fullscreen/pip
+ *   - bridge.hostContext             → theme, locale, displayMode, styles, ...
+ *   - bridge.hostCapabilities        → openLinks, serverTools, logging, ...
+ *   - bridge.isEmbedded              → true if inside a host iframe
+ */
+
+import { LLMApp, applyAdobeHandles, sendAdobeEvent, _resolveEdgeConfig, _buildInteractionXdm } from './llmapps-sdk.js';
+// Codegen fetches each SDK file from unpkg separately, so this file can sit next to an
+// older llmapps-sdk.js. A missing named import would stop the whole module from loading;
+// helpers newer than 0.1.10 are read through the namespace instead.
+import * as sdk from './llmapps-sdk.js';
+
+// Modules supplied by a deploy-time bundle (AMCP-724), keyed by absolute URL.
+// Hosts whose sandbox blocks external scripts (Gemini) cannot import() block or
+// EDS script URLs, so a bundle registers loaders for exactly the URLs this element
+// would import; anything not registered is still imported from its URL.
+// Kept on a global so every copy of this file on the page shares one registry.
+const REGISTRY_KEY = Symbol.for('@adobe/llmapps-sdk/aem-embed/modules');
+const moduleLoaders = globalThis[REGISTRY_KEY] || (globalThis[REGISTRY_KEY] = new Map());
+
+// null when the URL cannot be normalized (e.g. relative): such URLs are never
+// registered and keep resolving through import() exactly as before.
+function moduleKey(url) {
+  try {
+    return new URL(url).href;
+  } catch {
+    return null;
+  }
+}
+
+// eslint-disable-next-line import/prefer-default-export
+export class AEMEmbed extends HTMLElement {
+  /**
+   * Register module loaders by absolute URL: `{ [url]: () => Promise<module> }`.
+   * Loaders run lazily, when this element would otherwise import the URL, so
+   * module evaluation order matches the unbundled widget.
+   */
+  static registerModules(loaders) {
+    Object.entries(loaders || {}).forEach(([url, loader]) => {
+      if (typeof loader !== 'function') {
+        throw new TypeError(`[AEM Embed] module loader for ${url} must be a function`);
+      }
+      const key = moduleKey(url);
+      if (!key) throw new TypeError(`[AEM Embed] module URL must be absolute: ${url}`);
+      moduleLoaders.set(key, loader);
+    });
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  _import(url) {
+    const key = moduleKey(url);
+    const loader = key && moduleLoaders.get(key);
+    return loader ? loader() : import(url);
+  }
+
+  constructor() {
+    super();
+
+    this.attachShadow({ mode: 'open' });
+    this.initialized = false;
+
+    // The outer document hosts only this element. Drop the UA body margin and
+    // let the host's background show instead of an opaque white frame.
+    if (!document.getElementById('aem-embed-page-reset')) {
+      const pageReset = document.createElement('style');
+      pageReset.id = 'aem-embed-page-reset';
+      pageReset.textContent = 'html, body { margin: 0; padding: 0; background: transparent; }'
+        + ' aem-embed { display: block; }';
+      document.head.appendChild(pageReset);
+    }
+    this._edgeReady = null;
+
+    window.hlx = window.hlx || {};
+    window.hlx.suppressLoadPage = true;
+    // Keep a value set beforehand (e.g. by a deploy-time bundle, where
+    // import.meta.url is the iframe document rather than this script).
+    if (window.hlx.codeBasePath === undefined) {
+      [window.hlx.codeBasePath] = new URL(import.meta.url).pathname.split('/scripts/');
+    }
+
+    // Create the bridge instance — shared by all blocks in this embed
+    this._bridge = new LLMApp({
+      appInfo: { name: 'AEMEmbed', version: '1.0.0' },
+      appCapabilities: {
+        availableDisplayModes: ['inline', 'fullscreen'],
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Block loading — passes the bridge to block decorate()
+  // ---------------------------------------------------------------
+
+  async loadBlock(body, block, blockName, origin) {
+    const blockCss = `${origin}${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.css`;
+    if (!body.querySelector(`link[href="${blockCss}"]`)) {
+      const link = document.createElement('link');
+      link.setAttribute('rel', 'stylesheet');
+      link.setAttribute('href', blockCss);
+
+      const cssLoaded = new Promise((resolve) => {
+        link.onload = resolve;
+        link.onerror = resolve;
+      });
+
+      body.appendChild(link);
+      // eslint-disable-next-line no-await-in-loop
+      await cssLoaded;
+    }
+
+    try {
+      const blockScriptUrl = `${origin}${window.hlx.codeBasePath}/blocks/${blockName}/${blockName}.js`;
+      // eslint-disable-next-line no-await-in-loop
+      const decorateBlock = await this._import(blockScriptUrl);
+      if (decorateBlock.default) {
+        // eslint-disable-next-line no-await-in-loop
+        await decorateBlock.default(block, this._bridge);
+      }
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.log('[AEM Embed] Error loading block:', blockName, e);
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Content handlers
+  // ---------------------------------------------------------------
+
+  async handleHeader(htmlText, body, origin) {
+    await this.pseudoDecorateMain(htmlText, body, origin);
+
+    const main = body.querySelector('main');
+    const header = document.createElement('header');
+    body.append(header);
+    const { buildBlock } = await this._import(`${origin}${window.hlx.codeBasePath}/scripts/aem.js`);
+    const block = buildBlock('header', '');
+    header.append(block);
+
+    const cell = block.firstElementChild.firstElementChild;
+    const nav = document.createElement('nav');
+    cell.append(nav);
+    while (main.firstElementChild) nav.append(main.firstElementChild);
+    main.remove();
+
+    await this.loadBlock(body, block, 'header', origin);
+
+    block.dataset.blockStatus = 'loaded';
+    body.style.height = 'var(--nav-height)';
+    body.classList.add('appear');
+  }
+
+  async handleFooter(htmlText, body, origin) {
+    await this.pseudoDecorateMain(htmlText, body, origin);
+
+    const main = body.querySelector('main');
+    const footer = document.createElement('footer');
+    body.append(footer);
+    const { buildBlock } = await this._import(`${origin}${window.hlx.codeBasePath}/scripts/aem.js`);
+    const block = buildBlock('footer', '');
+    footer.append(block);
+
+    const cell = block.firstElementChild.firstElementChild;
+    const nav = document.createElement('nav');
+    cell.append(nav);
+    while (main.firstElementChild) nav.append(main.firstElementChild);
+    main.remove();
+
+    await this.loadBlock(body, block, 'footer', origin);
+
+    block.dataset.blockStatus = 'loaded';
+    body.classList.add('appear');
+  }
+
+  async pseudoDecorateMain(htmlText, body, origin) {
+    const main = document.createElement('main');
+    body.append(main);
+    main.innerHTML = htmlText;
+
+    const { decorateMain } = await this._import(`${origin}${window.hlx.codeBasePath}/scripts/scripts.js`);
+    if (decorateMain) {
+      await decorateMain(main, true);
+    }
+
+    const blockElements = main.querySelectorAll('.block');
+
+    if (blockElements.length > 0) {
+      const blocks = Array.from(blockElements).map((block) => block.classList.item(0));
+
+      for (let i = 0; i < blockElements.length; i += 1) {
+        const blockName = blocks[i];
+        const block = blockElements[i];
+        // eslint-disable-next-line no-await-in-loop
+        await this.loadBlock(body, block, blockName, origin);
+      }
+    }
+
+    const sections = main.querySelectorAll('.section');
+    sections.forEach((s) => {
+      s.dataset.sectionStatus = 'loaded';
+      s.style = '';
+    });
+  }
+
+  async handleMain(htmlText, body, origin) {
+    await this.pseudoDecorateMain(htmlText, body, origin);
+    body.classList.add('appear');
+  }
+
+  // ---------------------------------------------------------------
+  // Web Component lifecycle
+  // ---------------------------------------------------------------
+
+  async connectedCallback() {
+    if (this.initialized) this._setupHandoffLinks();
+    if (!this.initialized) {
+      try {
+        const urlAttribute = this.attributes.getNamedItem('url');
+        if (!urlAttribute) {
+          throw new Error('aem-embed missing url attribute');
+        }
+
+        const type = this.getAttribute('type') || 'main';
+
+        const body = document.createElement('body');
+        body.style = 'display: none';
+        this.shadowRoot.append(body);
+
+        const url = urlAttribute.value;
+        this._handoffBaseUrl = url;
+        this._bridge._linkBaseUrl = url;
+        const plainUrl = url.endsWith('/') ? `${url}index.plain.html` : `${url}.plain.html`;
+        const { href, origin } = new URL(plainUrl);
+
+        // Start bridge handshake in parallel with content fetch
+        const bridgeReady = this._bridge.connect();
+
+        // Load fragment
+        const resp = await fetch(href);
+        if (!resp.ok) {
+          throw new Error(`Unable to fetch ${href}`);
+        }
+
+        const styles = document.createElement('link');
+        styles.setAttribute('rel', 'stylesheet');
+        styles.setAttribute('href', `${origin}${window.hlx.codeBasePath}/styles/styles.css`);
+        styles.onload = () => { body.style = ''; };
+        styles.onerror = () => { body.style = ''; };
+        this.shadowRoot.appendChild(styles);
+
+        // The host sizes the iframe to the block, so the boilerplate's section
+        // margins and wrapper padding would overflow it or narrow the widget.
+        const layoutReset = document.createElement('style');
+        layoutReset.textContent = 'main > div, main > .section { margin: 0; }'
+          + ' main > .section > div { max-width: none; padding: 0; }';
+        this.shadowRoot.appendChild(layoutReset);
+
+        let htmlText = await resp.text();
+        const regex = /.\/media/g;
+        htmlText = htmlText.replace(regex, `${origin}/media`);
+
+        this.initialized = true;
+
+        // Wait for bridge before loading blocks
+        await bridgeReady;
+
+        // Centralized Adobe Edge: configure alloy and apply any server-provided
+        // handles once per bridge connection, before any block renders. Driven
+        // by the inline window.LLM_APPS_EDGE_* globals, so no block/widget JS
+        // calls Adobe. Fail-soft — applyAdobeHandles never throws into render.
+        const edgeConfig = _resolveEdgeConfig({
+          edgeEnabled: /** @type {any} */(window).LLM_APPS_EDGE_ENABLED,
+          datastreamId: /** @type {any} */(window).LLM_APPS_DATASTREAM_ID,
+          orgId: /** @type {any} */(window).LLM_APPS_ORG_ID
+        });
+        // Guard against a second init (a re-parent mid-fetch can re-enter
+        // connectedCallback before `initialized` is set) double-configuring
+        // alloy and stacking a duplicate click listener (2x events).
+        if (edgeConfig && !this._edgeInitialized) {
+          this._edgeInitialized = true;
+          // Non-blocking: applyAdobeHandles awaits bridge.toolResult
+          // internally, so awaiting it HERE would stall the whole render (the
+          // exact regression 4d9c006 removed). Instead, the promise is
+          // stashed on this._edgeReady so _trackInteractions's click handler
+          // can await it before sending its own event -- closes the race
+          // where a fast click fires sendAdobeEvent before configure()/
+          // applyResponse() finish, which used to route the request through
+          // Adobe's cold-start demdex.net path with no location hint /
+          // unsynced ECID instead of the server-resolved identity.
+          this._edgeReady = applyAdobeHandles(this._bridge, edgeConfig).catch(() => {});
+          this._trackInteractions();
+          this._setupHandoffLinks();
+        }
+
+        // Apply theme class to shadow body so CSS `.dark` selectors work inside Shadow DOM
+        // (prefers-color-scheme media queries don't work inside Shadow DOM)
+        const applyTheme = (theme) => {
+          body.classList.toggle('dark', theme === 'dark');
+          body.classList.toggle('light', theme !== 'dark');
+          // A color-scheme mismatch with the host makes the iframe canvas opaque.
+          document.documentElement.style.colorScheme = theme === 'dark' ? 'dark' : 'light';
+        };
+        applyTheme(this._bridge.hostContext?.theme || /** @type {any} */(window).openai?.theme || 'light');
+        this._bridge.onContextChange?.((ctx) => applyTheme(ctx.theme));
+
+        if (type === 'main') await this.handleMain(htmlText, body, origin);
+        if (type === 'header') await this.handleHeader(htmlText, body, origin);
+        if (type === 'footer') await this.handleFooter(htmlText, body, origin);
+
+        const fonts = document.createElement('link');
+        fonts.setAttribute('rel', 'stylesheet');
+        fonts.setAttribute('href', `${origin}${window.hlx.codeBasePath}/styles/fonts.css`);
+        this.shadowRoot.appendChild(fonts);
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.log(err || '[AEM Embed] An error occurred while loading the content');
+      }
+    }
+  }
+
+  _setupHandoffLinks() {
+    // Only while attached: an embed removed during the async init must not keep
+    // an observer/subscription; reconnecting runs this again (connectedCallback).
+    if (this.isConnected && this._edgeInitialized && !this._handoffLinks && sdk._observeHandoffLinks) {
+      this._handoffLinks = sdk._observeHandoffLinks(this.shadowRoot, this._bridge, {
+        baseUrl: this._handoffBaseUrl
+      });
+    }
+  }
+
+  disconnectedCallback() {
+    this._handoffLinks?.disconnect();
+    this._handoffLinks = null;
+  }
+
+  // One delegated listener forwards each widget interaction to Edge (same
+  // datastream as the server event, stitched by the shared identityMap). Only
+  // actionable elements fire — a click on plain whitespace is ignored. Widgets
+  // can label an interaction with data-analytics="..."; no widget/block JS
+  // touches Adobe. Fail-soft: sendAdobeEvent never throws into the widget.
+  // Capture phase: a widget handler that calls stopPropagation() can't hide
+  // the click (Alloy's own link tracking, now off, listened in capture too).
+  _trackInteractions() {
+    if (this._interactionHandler) return;
+    this._interactionHandler = (e) => {
+      if (e.type === 'auxclick' && e.button !== 1) return;
+      const target = /** @type {Element} */ (e.target);
+      const el = target && target.closest
+        ? target.closest('a, button, [role="button"], [data-analytics]')
+        : null;
+      if (!el) return;
+      // Read the element's data NOW (synchronously, during the real click) --
+      // by the time _edgeReady resolves the DOM may have changed -- then
+      // wait for configure()/applyResponse() to finish before actually
+      // sending, so this event carries the same synced identity/location
+      // hint as the server's own edge call instead of racing ahead of it.
+      // The click then takes the tool call's conversationID/turnID.
+      const xdm = _buildInteractionXdm(el);
+      const withContext = sdk._withInteractionContext || ((x) => x);
+      // Capture the active result and link ID NOW, not after Edge/DOM updates.
+      const activeResult = 'currentToolResult' in this._bridge
+        ? Promise.resolve(this._bridge.currentToolResult) : this._bridge.toolResult;
+      // A labelled child (data-analytics, role="button") inside a marked link
+      // still belongs to that link: read the nearest marked CTA, incl. opt-out.
+      const marked = el.dataset?.llmAppsLinkId !== undefined ? el
+        : el.closest?.('a[data-llm-apps-link-id], button[data-llm-apps-link-id], [role="button"][data-llm-apps-link-id]') ?? null;
+      const link = { dataset: marked
+        ? { llmAppsLinkId: marked.dataset.llmAppsLinkId, llmAppsHandoff: marked.dataset.llmAppsHandoff } : {} };
+      Promise.all([this._edgeReady, activeResult])
+        .then(([, result]) => {
+          const data = sdk._buildHandoffEventData?.(link, result);
+          return sendAdobeEvent({ toolResult: Promise.resolve(result) }, withContext(xdm, result), { data });
+        })
+        // eslint-disable-next-line no-console
+        .catch((err) => console.warn('[LLMApps] [edge] click not sent:', err));
+    };
+    this.shadowRoot.addEventListener('click', this._interactionHandler, true);
+    this.shadowRoot.addEventListener('auxclick', this._interactionHandler, true);
+  }
+
+  // eslint-disable-next-line class-methods-use-this
+  async importScript(url) {
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = url;
+      script.async = true;
+      script.type = 'module';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.body.appendChild(script);
+    });
+  }
+}
+
+// A second copy of this file on the same page must not throw; the first
+// definition wins and shares the module registry above.
+if (!customElements.get('aem-embed')) customElements.define('aem-embed', AEMEmbed);
