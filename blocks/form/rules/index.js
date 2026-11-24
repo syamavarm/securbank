@@ -1,3 +1,4 @@
+// LLM Apps lifecycle v1: blocks/form/rules/index.js
 /* eslint-disable one-var */
 /** ***********************************************************************
  * ADOBE CONFIDENTIAL
@@ -395,7 +396,15 @@ export async function loadRuleEngine(formDef, htmlForm, captcha, genFormRenditio
   window.myForm = form;
   formModels[htmlForm.dataset?.id] = form;
   const subscriptions = formSubscriptions[htmlForm.dataset?.id];
-  form.subscribe((e) => {
+  const modelListeners = [];
+  const subscribeModel = (...args) => modelListeners.push(form.subscribe(...args));
+  htmlForm.addEventListener('aem-form-dispose', (event) => {
+    modelListeners.forEach((subscription) => subscription?.unsubscribe());
+    delete formModels[htmlForm.dataset.id];
+    delete formSubscriptions[htmlForm.dataset.id];
+    if (typeof event.detail?.acknowledge === 'function') event.detail.acknowledge();
+  }, { once: true });
+  subscribeModel((e) => {
     handleRuleEngineEvent(e, htmlForm, genFormRendition);
     const fieldId = e.payload?.field?.id;
     if (fieldId) {
@@ -410,16 +419,16 @@ export async function loadRuleEngine(formDef, htmlForm, captcha, genFormRenditio
       }
     }
   }, 'fieldChanged');
-  form.subscribe((e) => {
+  subscribeModel((e) => {
     handleRuleEngineEvent(e, htmlForm, genFormRendition);
   }, 'change');
-  form.subscribe((e) => {
+  subscribeModel((e) => {
     handleRuleEngineEvent(e, htmlForm);
   }, 'submitSuccess');
-  form.subscribe((e) => {
+  subscribeModel((e) => {
     handleRuleEngineEvent(e, htmlForm);
   }, 'submitFailure');
-  form.subscribe((e) => {
+  subscribeModel((e) => {
     handleRuleEngineEvent(e, htmlForm);
   }, 'submitError');
   applyRuleEngine(htmlForm, form, captcha);
@@ -430,7 +439,11 @@ export async function loadRuleEngine(formDef, htmlForm, captcha, genFormRenditio
       callback(fieldDiv, model, 'register');
     });
   }
-  form.dispatch(new CustomEvent('formViewInitialized'));
+  form.dispatch(new ruleEngine.CustomEvent('formViewInitialized'));
+  htmlForm.dispatchEvent(new CustomEvent('formViewInitialized', {
+    bubbles: true,
+    detail: { formModel: form },
+  }));
 }
 
 async function initializeRuleEngineWorker(formDef, renderHTMLForm) {
