@@ -1,0 +1,378 @@
+@charset "UTF-8";
+
+.browse-securbank-financial-products {
+  color-scheme: light dark;
+
+  --colors-surface: #fff;
+  --colors-surface-secondary: #f9f9f9;
+  --colors-text: #0d0d0d;
+  --colors-text-secondary: #5d5d5d;
+  --colors-text-tertiary: #8f8f8f;
+  --colors-border: rgb(13 13 13 / 10%);
+  --colors-focus-ring: #0169cc;
+  --colors-brand-accent: #087c89;
+  --colors-on-brand-accent: #fff;
+  --font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Noto Sans", helvetica, arial, sans-serif;
+  --typography-title-font-size: 1rem;
+  --typography-title-font-weight: 600;
+  --typography-title-line-height: 1.5rem;
+  --typography-body-font-size: 1rem;
+  --typography-body-line-height: 1.5rem;
+  --typography-body-small-font-size: 0.875rem;
+  --typography-body-small-line-height: 1.25rem;
+  --typography-caption-font-size: 0.75rem;
+  --typography-caption-line-height: 1.125rem;
+  --rounded-lg: 10px;
+  --rounded-xl: 12px;
+  --rounded-full: 9999px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+  --components-button-height: 36px;
+  --components-badge-height: 22px;
+
+  overflow-x: hidden;
+  margin: 0;
+  background: var(--colors-surface);
+  color: var(--colors-text);
+  font-family: var(--font-family);
+  font-size: var(--typography-body-font-size);
+  line-height: var(--typography-body-line-height);
+}
+
+@media (prefers-color-scheme: dark) {
+  .browse-securbank-financial-products:not([data-theme="light"]) {
+    --colors-surface: #212121;
+    --colors-surface-secondary: #181818;
+    --colors-text: #fff;
+    --colors-text-secondary: #afafaf;
+    --colors-text-tertiary: #8f8f8f;
+    --colors-border: rgb(255 255 255 / 12%);
+    --colors-focus-ring: #0285ff;
+    --colors-brand-accent: #3294a1;
+    --colors-on-brand-accent: #0d0d0d;
+  }
+}
+
+.browse-securbank-financial-products[data-theme="dark"] {
+  --colors-surface: #212121;
+  --colors-surface-secondary: #181818;
+  --colors-text: #fff;
+  --colors-text-secondary: #afafaf;
+  --colors-text-tertiary: #8f8f8f;
+  --colors-border: rgb(255 255 255 / 12%);
+  --colors-focus-ring: #0285ff;
+  --colors-brand-accent: #3294a1;
+  --colors-on-brand-accent: #0d0d0d;
+
+  color-scheme: dark;
+}
+
+.browse-securbank-financial-products[data-theme="light"] {
+  color-scheme: light;
+}
+
+.browse-securbank-financial-products,
+.browse-securbank-financial-products * {
+  box-sizing: border-box;
+}
+
+.browse-securbank-financial-products ::selection {
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+}
+
+.browse-securbank-financial-products :focus-visible {
+  outline: 2px solid var(--colors-focus-ring);
+  outline-offset: 2px;
+}
+
+.browse-securbank-financial-products .product-browser {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-lg) 0;
+  max-width: 768px;
+}
+
+/* boilerplate sets header { height: 64px } */
+.browse-securbank-financial-products .browser-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--spacing-md);
+  height: auto;
+  padding: 0 var(--spacing-lg);
+}
+
+.browse-securbank-financial-products .browser-title {
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--typography-title-font-size);
+  font-weight: var(--typography-title-font-weight);
+  line-height: var(--typography-title-line-height);
+  scroll-margin: 0;
+}
+
+.browse-securbank-financial-products .browser-count,
+.browse-securbank-financial-products .browser-empty,
+.browse-securbank-financial-products .browser-status {
+  margin: 0;
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.browse-securbank-financial-products .browser-empty,
+.browse-securbank-financial-products .browser-status {
+  padding: 0 var(--spacing-lg);
+}
+
+.browse-securbank-financial-products .browser-status[hidden] {
+  display: none;
+}
+
+.browse-securbank-financial-products .category-index {
+  display: flex;
+  gap: var(--spacing-sm);
+  margin: 0;
+  padding: 2px var(--spacing-lg);
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.browse-securbank-financial-products .category-index::-webkit-scrollbar {
+  display: none;
+}
+
+.browse-securbank-financial-products .index-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 var(--spacing-md);
+  border: 1px solid var(--colors-border);
+  border-radius: var(--rounded-full);
+  color: var(--colors-text);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  text-decoration: none;
+  text-transform: capitalize;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  transition: border-color 160ms ease-out, color 160ms ease-out;
+}
+
+.browse-securbank-financial-products .index-chip:hover {
+  border-color: var(--colors-brand-accent);
+  color: var(--colors-brand-accent);
+  text-decoration: none;
+}
+
+.browse-securbank-financial-products .product-rail {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc(100% - 72px);
+  gap: var(--spacing-md);
+  margin: 0;
+  padding: 0 var(--spacing-lg) var(--spacing-xs);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scroll-padding: 0 var(--spacing-lg);
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--colors-border) transparent;
+}
+
+@media (width >= 600px) {
+  .browse-securbank-financial-products .product-rail {
+    grid-auto-columns: 320px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .browse-securbank-financial-products .product-rail {
+    scroll-behavior: auto;
+  }
+
+  .browse-securbank-financial-products .index-chip {
+    transition: none;
+  }
+}
+
+.browse-securbank-financial-products .product-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  padding: var(--spacing-md);
+  border: 1px solid var(--colors-border);
+  border-radius: var(--rounded-xl);
+  background: var(--colors-surface);
+  scroll-snap-align: start;
+}
+
+.browse-securbank-financial-products .product-image {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--rounded-lg);
+  background: var(--colors-surface-secondary);
+}
+
+.browse-securbank-financial-products .product-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-xs);
+}
+
+.browse-securbank-financial-products .badge {
+  position: absolute;
+  top: calc(var(--spacing-md) + var(--spacing-sm));
+  left: calc(var(--spacing-md) + var(--spacing-sm));
+  display: inline-flex;
+  align-items: center;
+  height: var(--components-badge-height);
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--rounded-full);
+  background: var(--colors-surface-secondary);
+  color: var(--colors-brand-accent);
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+  text-transform: capitalize;
+}
+
+.browse-securbank-financial-products .product-name {
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--typography-title-font-size);
+  font-weight: var(--typography-title-font-weight);
+  line-height: var(--typography-title-line-height);
+  text-wrap: balance;
+  scroll-margin: 0;
+}
+
+.browse-securbank-financial-products .product-description {
+  margin: 0;
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.browse-securbank-financial-products .feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--spacing-xs) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.browse-securbank-financial-products .feature-list li {
+  position: relative;
+  padding-left: var(--spacing-lg);
+}
+
+.browse-securbank-financial-products .feature-list li::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--rounded-full);
+  background: var(--colors-brand-accent);
+}
+
+.browse-securbank-financial-products .card-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs) var(--spacing-lg);
+  margin: auto 0 0;
+  padding-top: var(--spacing-sm);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.browse-securbank-financial-products .card-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  color: var(--colors-brand-accent);
+  font-weight: var(--typography-title-font-weight);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.browse-securbank-financial-products .card-link:hover {
+  color: var(--colors-brand-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.browse-securbank-financial-products .browser-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  padding: 0 var(--spacing-lg);
+}
+
+.browse-securbank-financial-products .button-primary,
+.browse-securbank-financial-products .button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--components-button-height);
+  margin: 0;
+  padding: 0 var(--spacing-lg);
+  border: 0;
+  border-radius: var(--rounded-full);
+  font-family: inherit;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  font-weight: var(--typography-title-font-weight);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.browse-securbank-financial-products .button-primary {
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+}
+
+.browse-securbank-financial-products .button-secondary {
+  background: var(--colors-surface-secondary);
+  color: var(--colors-text);
+  box-shadow: inset 0 0 0 1px var(--colors-border);
+}
+
+.browse-securbank-financial-products .button-primary:hover {
+  filter: brightness(0.92);
+}
+
+.browse-securbank-financial-products .button-secondary:hover {
+  filter: brightness(0.96);
+}
+
+.browse-securbank-financial-products .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
