@@ -1,0 +1,493 @@
+@charset "UTF-8";
+
+.compare-securbank-credit-cards {
+  --colors-surface: #fff;
+  --colors-surface-secondary: #f9f9f9;
+  --colors-text: #0d0d0d;
+  --colors-text-secondary: #5d5d5d;
+  --colors-text-tertiary: #8f8f8f;
+  --colors-border: rgb(13 13 13 / 10%);
+  --colors-focus-ring: #0169cc;
+  --colors-surface-dark: #212121;
+  --colors-surface-secondary-dark: #181818;
+  --colors-text-dark: #fff;
+  --colors-text-secondary-dark: #afafaf;
+  --colors-text-tertiary-dark: #8f8f8f;
+  --colors-border-dark: rgb(255 255 255 / 12%);
+  --colors-focus-ring-dark: #0285ff;
+  --colors-brand-accent: #087c89;
+  --colors-on-brand-accent: #fff;
+  --colors-brand-accent-dark: #3294a1;
+  --colors-on-brand-accent-dark: #0d0d0d;
+  --typography-font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", "Noto Sans", helvetica, arial, sans-serif;
+  --typography-title-font-size: 1rem;
+  --typography-title-font-weight: 600;
+  --typography-title-line-height: 1.5rem;
+  --typography-body-font-size: 1rem;
+  --typography-body-font-weight: 400;
+  --typography-body-line-height: 1.5rem;
+  --typography-body-small-font-size: 0.875rem;
+  --typography-body-small-line-height: 1.25rem;
+  --typography-caption-font-size: 0.75rem;
+  --typography-caption-line-height: 1.125rem;
+  --rounded-sm: 6px;
+  --rounded-md: 8px;
+  --rounded-lg: 10px;
+  --rounded-xl: 12px;
+  --rounded-2xl: 16px;
+  --rounded-full: 9999px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 12px;
+  --spacing-lg: 16px;
+  --spacing-xl: 24px;
+
+  display: block;
+  margin: 0;
+  background: var(--colors-surface);
+  color: var(--colors-text);
+  font-family: var(--typography-font-family);
+  font-size: var(--typography-body-font-size);
+  line-height: var(--typography-body-line-height);
+  -webkit-font-smoothing: antialiased;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  .compare-securbank-credit-cards:not([data-theme="light"]) {
+    --colors-surface: var(--colors-surface-dark);
+    --colors-surface-secondary: var(--colors-surface-secondary-dark);
+    --colors-text: var(--colors-text-dark);
+    --colors-text-secondary: var(--colors-text-secondary-dark);
+    --colors-text-tertiary: var(--colors-text-tertiary-dark);
+    --colors-border: var(--colors-border-dark);
+    --colors-focus-ring: var(--colors-focus-ring-dark);
+    --colors-brand-accent: var(--colors-brand-accent-dark);
+    --colors-on-brand-accent: var(--colors-on-brand-accent-dark);
+
+    color-scheme: dark;
+  }
+}
+
+.compare-securbank-credit-cards[data-theme="dark"] {
+  --colors-surface: var(--colors-surface-dark);
+  --colors-surface-secondary: var(--colors-surface-secondary-dark);
+  --colors-text: var(--colors-text-dark);
+  --colors-text-secondary: var(--colors-text-secondary-dark);
+  --colors-text-tertiary: var(--colors-text-tertiary-dark);
+  --colors-border: var(--colors-border-dark);
+  --colors-focus-ring: var(--colors-focus-ring-dark);
+  --colors-brand-accent: var(--colors-brand-accent-dark);
+  --colors-on-brand-accent: var(--colors-on-brand-accent-dark);
+
+  color-scheme: dark;
+}
+
+.compare-securbank-credit-cards,
+.compare-securbank-credit-cards *,
+.compare-securbank-credit-cards *::before,
+.compare-securbank-credit-cards *::after {
+  box-sizing: border-box;
+}
+
+.compare-securbank-credit-cards ::selection {
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+}
+
+.compare-securbank-credit-cards .card-compare {
+  position: relative;
+  padding: var(--spacing-md) var(--spacing-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reset boilerplate heading, list and paragraph globals inside the block. */
+.compare-securbank-credit-cards h2,
+.compare-securbank-credit-cards h3,
+.compare-securbank-credit-cards p,
+.compare-securbank-credit-cards ul,
+.compare-securbank-credit-cards dl {
+  margin: 0;
+  font-family: inherit;
+  scroll-margin: 0;
+}
+
+.compare-securbank-credit-cards .compare-table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.compare-securbank-credit-cards .compare-table th,
+.compare-securbank-credit-cards .compare-table td {
+  text-align: left;
+  vertical-align: top;
+  font-weight: var(--typography-body-font-weight);
+  padding: 0;
+}
+
+/* index.html's .card-head padding loses to .compare-table th { padding: 0 }; keep that result. */
+.compare-securbank-credit-cards .compare-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.compare-securbank-credit-cards .compare-table-wide {
+  width: max-content;
+  min-width: 100%;
+}
+
+.compare-securbank-credit-cards .compare-table-wide col {
+  width: 10rem;
+}
+
+.compare-securbank-credit-cards .card-image {
+  display: block;
+  width: 100%;
+  max-width: 6rem;
+  height: auto;
+  aspect-ratio: 1.586 / 1;
+  object-fit: contain;
+  border-radius: var(--rounded-lg);
+  background: var(--colors-surface-secondary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.compare-securbank-credit-cards .card-name,
+.compare-securbank-credit-cards a.card-name:any-link {
+  display: block;
+  font-size: var(--typography-title-font-size);
+  font-weight: var(--typography-title-font-weight);
+  line-height: var(--typography-title-line-height);
+  color: var(--colors-brand-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+  border-radius: var(--rounded-sm);
+  overflow-wrap: normal;
+}
+
+.compare-securbank-credit-cards a.card-name:hover {
+  color: var(--colors-brand-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.compare-securbank-credit-cards .card-name-plain,
+.compare-securbank-credit-cards .card-name-plain:hover {
+  color: var(--colors-text);
+  text-decoration: none;
+}
+
+.compare-securbank-credit-cards .card-description {
+  display: block;
+  margin-top: var(--spacing-xs);
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.compare-securbank-credit-cards .row-label th {
+  border-top: 1px solid var(--colors-border);
+  padding-top: var(--spacing-md);
+}
+
+.compare-securbank-credit-cards .row-label-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.compare-securbank-credit-cards .row-values td {
+  padding-top: var(--spacing-xs);
+  padding-bottom: var(--spacing-md);
+  font-size: var(--typography-body-font-size);
+  line-height: var(--typography-body-line-height);
+}
+
+.compare-securbank-credit-cards .compare-table th + th,
+.compare-securbank-credit-cards .compare-table td + td {
+  padding-left: var(--spacing-md);
+}
+
+.compare-securbank-credit-cards .value-text::first-letter {
+  text-transform: uppercase;
+}
+
+.compare-securbank-credit-cards .badge,
+.compare-securbank-credit-cards .badge-highlight {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--spacing-sm);
+  border-radius: var(--rounded-full);
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+  font-weight: var(--typography-title-font-weight);
+  white-space: nowrap;
+  flex: none;
+}
+
+.compare-securbank-credit-cards .badge {
+  background: var(--colors-surface-secondary);
+  color: var(--colors-brand-accent);
+  box-shadow: inset 0 0 0 1px var(--colors-border);
+}
+
+.compare-securbank-credit-cards .badge-highlight {
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+}
+
+.compare-securbank-credit-cards .shared {
+  border-top: 1px solid var(--colors-border);
+  padding-top: var(--spacing-md);
+  margin-top: calc(var(--spacing-md) * -1);
+}
+
+.compare-securbank-credit-cards .shared-heading {
+  margin: 0 0 var(--spacing-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  font-weight: var(--typography-body-font-weight);
+  color: var(--colors-text-secondary);
+}
+
+.compare-securbank-credit-cards .shared-grid {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+}
+
+.compare-securbank-credit-cards .shared-item {
+  min-width: 0;
+}
+
+.compare-securbank-credit-cards .shared-count {
+  margin-left: auto;
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+  white-space: nowrap;
+}
+
+.compare-securbank-credit-cards .shared-item dt {
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+}
+
+.compare-securbank-credit-cards .shared-item dd {
+  margin: 0;
+  font-size: var(--typography-body-font-size);
+  line-height: var(--typography-body-line-height);
+  font-weight: var(--typography-title-font-weight);
+}
+
+.compare-securbank-credit-cards .nowrap {
+  white-space: nowrap;
+}
+
+.compare-securbank-credit-cards .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.compare-securbank-credit-cards .list-rows {
+  border-top: 1px solid var(--colors-border);
+}
+
+.compare-securbank-credit-cards .list-row {
+  border-bottom: 1px solid var(--colors-border);
+}
+
+.compare-securbank-credit-cards .list-row summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 40px;
+  padding: var(--spacing-xs) 0;
+  cursor: pointer;
+  border-radius: var(--rounded-sm);
+}
+
+.compare-securbank-credit-cards .list-row summary::-webkit-details-marker {
+  display: none;
+}
+
+.compare-securbank-credit-cards .list-row summary .badge,
+.compare-securbank-credit-cards .list-row summary .badge-highlight {
+  margin-right: auto;
+}
+
+.compare-securbank-credit-cards .list-label {
+  font-size: var(--typography-body-font-size);
+  font-weight: var(--typography-title-font-weight);
+}
+
+.compare-securbank-credit-cards .list-count {
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  white-space: nowrap;
+}
+
+.compare-securbank-credit-cards .chevron {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--colors-text-secondary);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.compare-securbank-credit-cards .chevron::before {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 3.5px;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid currentcolor;
+  border-bottom: 1.5px solid currentcolor;
+  border-bottom-right-radius: 1px;
+  transform: rotate(45deg);
+}
+
+.compare-securbank-credit-cards .list-row[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.compare-securbank-credit-cards .list-body {
+  max-height: 6.5rem;
+  overflow-y: auto;
+  padding: 0 var(--spacing-xs) var(--spacing-md) 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--colors-border) transparent;
+}
+
+.compare-securbank-credit-cards .list-rows-compact .list-body {
+  max-height: 4rem;
+}
+
+.compare-securbank-credit-cards .list-split {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  gap: var(--spacing-md);
+}
+
+.compare-securbank-credit-cards .list-column {
+  min-width: 0;
+}
+
+.compare-securbank-credit-cards .list-body .list-column-name {
+  margin-bottom: var(--spacing-xs);
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-caption-font-size);
+  line-height: var(--typography-caption-line-height);
+  font-weight: var(--typography-title-font-weight);
+}
+
+.compare-securbank-credit-cards .list-body ul {
+  margin: 0;
+  padding-left: var(--spacing-lg);
+  display: grid;
+  gap: var(--spacing-xs);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.compare-securbank-credit-cards .list-body p {
+  margin: 0;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.compare-securbank-credit-cards .list-body li::marker {
+  color: var(--colors-text-secondary);
+}
+
+.compare-securbank-credit-cards .actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.compare-securbank-credit-cards .button-primary {
+  width: 100%;
+  height: 36px;
+  margin: 0;
+  padding: 0 var(--spacing-lg);
+  border: 0;
+  border-radius: var(--rounded-full);
+  background: var(--colors-brand-accent);
+  color: var(--colors-on-brand-accent);
+  font-family: inherit;
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+  font-weight: var(--typography-title-font-weight);
+  cursor: pointer;
+  transition: background-color 150ms ease-out;
+}
+
+.compare-securbank-credit-cards .button-primary:hover {
+  background: color-mix(in srgb, var(--colors-brand-accent) 86%, var(--colors-text));
+}
+
+.compare-securbank-credit-cards .button-primary:disabled {
+  cursor: progress;
+}
+
+.compare-securbank-credit-cards .card-name:focus-visible,
+.compare-securbank-credit-cards .list-row summary:focus-visible,
+.compare-securbank-credit-cards .button-primary:focus-visible {
+  outline: 2px solid var(--colors-focus-ring);
+  outline-offset: 2px;
+}
+
+.compare-securbank-credit-cards .compare-empty,
+.compare-securbank-credit-cards .compare-status {
+  margin: 0;
+  color: var(--colors-text-secondary);
+  font-size: var(--typography-body-small-font-size);
+  line-height: var(--typography-body-small-line-height);
+}
+
+.compare-securbank-credit-cards .compare-status[hidden] {
+  display: none;
+}
+
+@media (width > 560px) {
+  .compare-securbank-credit-cards .shared-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .compare-securbank-credit-cards .card-image {
+    max-width: 9rem;
+  }
+
+  .compare-securbank-credit-cards .button-primary {
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compare-securbank-credit-cards .chevron,
+  .compare-securbank-credit-cards .button-primary {
+    transition: none;
+  }
+}
